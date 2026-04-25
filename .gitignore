@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+uploads/faces/*
+!uploads/faces/.gitkeep
+*.log
+.DS_Store
+coverage/
