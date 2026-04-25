@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  FAILED
+  CHECKED_OUT
+}
+
+enum VerificationResult {
+  MATCH
+  MISMATCH
+  UNKNOWN_CARD
+  NO_FACE
+  NO_SESSION
+  ERROR
+}
+
+enum LedFeedback {
+  GREEN
+  RED
+  OFF
+}
+
+enum BuzzerFeedback {
+  SHORT_BEEP
+  LONG_BEEP
+  NONE
+}
+
+enum RoleName {
+  SUPER_ADMIN
+  ADMIN_HR_ENROLLMENT
+  PROFESSOR
+}
+
+// ── Academic hierarchy ──
+
+model University {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  code      String    @unique
+  faculties Faculty[]
+  rooms     Room[]
+  createdAt DateTime  @default(now())
+
+  @@map("universities")
+}
+
+model Faculty {
+  id           String       @id @default(cuid())
+  name         String
+  universityId String
+  university   University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  departments  Department[]
+  createdAt    DateTime     @default(now())
+
+  @@map("faculties")
+}
+
+model Department {
+  id           String       @id @default(cuid())
+  name         String
+  facultyId    String
+  faculty      Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  specialities Speciality[]
+  createdAt    DateTime     @default(now())
+
+  @@map("departments")
+}
+
+model Speciality {
+  id           String       @id @default(cuid())
+  name         String
+  departmentId String
+  department   Department   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  classGroups  ClassGroup[]
+  createdAt    DateTime     @default(now())
+
+  @@map("specialities")
+}
+
+model ClassGroup {
+  id           String     @id @default(cuid())
+  name         String
+  level        String
+  specialityId String
+  speciality   Speciality @relation(fields: [specialityId], references: [id], onDelete: Cascade)
+  students     User[]
+  modules      Module[]
+  createdAt    DateTime   @default(now())
+
+  @@map("class_groups")
+}
+
+model Room {
+  id           String     @id @default(cuid())
+  name         String
+  building     String?
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  modules      Module[]
+  createdAt    DateTime   @default(now())
+
+  @@map("rooms")
+}
+
+// ── Modules & scheduling ──
+
+model Module {
+  id             String            @id @default(cuid())
+  name           String
+  code           String            @unique
+  classGroupId   String
+  classGroup     ClassGroup        @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  roomId         String?
+  room           Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  startDate      DateTime
+  endDate        DateTime
+  professors     ProfessorModule[]
+  sessions       ModuleSession[]
+  attendanceLogs AttendanceLog[]
+  createdAt      DateTime          @default(now())
+
+  @@map("modules")
+}
+
+model ModuleSession {
+  id             String          @id @default(cuid())
+  moduleId       String
+  module         Module          @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int
+  startTime      String
+  endTime        String
+  attendanceLogs AttendanceLog[]
+
+  @@map("module_sessions")
+}
+
+model ProfessorModule {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moduleId String
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+  @@map("professor_modules")
+}
+
+// ── Core ──
+
+model Role {
+  id          String   @id @default(cuid())
+  name        RoleName @unique
+  permissions Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id               String            @id @default(cuid())
+  firstName        String
+  lastName         String
+  email            String            @unique
+  passwordHash     String?
+  phone            String?
+  studentId        String?           @unique
+  classGroupId     String?
+  classGroup       ClassGroup?       @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
+  isActive         Boolean           @default(true)
+  roleId           String
+  role             Role              @relation(fields: [roleId], references: [id])
+  rfidCard         RFIDCard?
+  faceTemplates    FaceTemplate[]
+  attendanceLogs   AttendanceLog[]
+  accessLogs       AccessLog[]
+  professorModules ProfessorModule[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@map("users")
+}
+
+model RFIDCard {
+  id         String   @id @default(cuid())
+  uid        String   @unique
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isActive   Boolean  @default(true)
+  assignedAt DateTime @default(now())
+
+  @@map("rfid_cards")
+}
+
+model FaceTemplate {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  embedding    Json
+  imagePath    String
+  qualityScore Float    @default(0)
+  createdAt    DateTime @default(now())
+
+  @@map("face_templates")
+}
+
+model AttendanceLog {
+  id                 String             @id @default(cuid())
+  userId             String?
+  user               User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rfidUid            String
+  checkInAt          DateTime           @default(now())
+  checkOutAt         DateTime?
+  status             AttendanceStatus   @default(PRESENT)
+  verificationResult VerificationResult
+  similarityScore    Float?
+  moduleId           String?
+  module             Module?            @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  moduleSessionId    String?
+  moduleSession      ModuleSession?     @relation(fields: [moduleSessionId], references: [id], onDelete: SetNull)
+  createdAt          DateTime           @default(now())
+
+  @@map("attendance_logs")
+}
+
+model AccessLog {
+  id              String             @id @default(cuid())
+  userId          String?
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  rfidUid         String
+  result          VerificationResult
+  reason          String
+  ledFeedback     LedFeedback
+  buzzerFeedback  BuzzerFeedback
+  doorUnlocked    Boolean            @default(false)
+  similarityScore Float?
+  createdAt       DateTime           @default(now())
+
+  @@map("access_logs")
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  @@map("settings")
+}
