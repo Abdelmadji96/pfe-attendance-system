@@ -32,6 +32,8 @@ import type {
   createModuleSessionSchema,
   assignProfessorSchema,
   csvImportSchema,
+  createStaffSchema,
+  updateStaffSchema,
 } from "./schemas";
 
 // ── Inferred request types ──
@@ -60,6 +62,8 @@ export type UpdateModuleInput = z.infer<typeof updateModuleSchema>;
 export type CreateModuleSessionInput = z.infer<typeof createModuleSessionSchema>;
 export type AssignProfessorInput = z.infer<typeof assignProfessorSchema>;
 export type CsvImportInput = z.infer<typeof csvImportSchema>;
+export type CreateStaffInput = z.infer<typeof createStaffSchema>;
+export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 
 // ── API response wrappers ──
 
@@ -183,10 +187,25 @@ export interface UserDto {
   classGroup: ClassGroupDto | null;
   isActive: boolean;
   role: RoleDto;
+  universityId: string | null;
+  university?: UniversityDto | null;
+  facultyId: string | null;
+  faculty?: FacultyDto | null;
+  departmentId: string | null;
+  department?: DepartmentDto | null;
+  createdById: string | null;
   rfidCard: RfidCardDto | null;
   professorModules?: ProfessorModuleDto[];
+  professorDepartments?: ProfessorDepartmentDto[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProfessorDepartmentDto {
+  id: string;
+  userId: string;
+  departmentId: string;
+  department?: DepartmentDto & { faculty?: FacultyDto };
 }
 
 export interface RfidCardDto {
@@ -247,7 +266,12 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
   role: RoleDto;
+  universityId: string | null;
+  facultyId: string | null;
+  departmentId: string | null;
 }
 
 export interface AuthResponse {

@@ -33,6 +33,9 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
         name: user.role.name as any,
         permissions: user.role.permissions as Permission[],
       },
+      universityId: user.universityId,
+      facultyId: user.facultyId,
+      departmentId: user.departmentId,
     };
 
     next();

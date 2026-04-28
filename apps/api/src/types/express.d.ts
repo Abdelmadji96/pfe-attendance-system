@@ -14,6 +14,9 @@ declare global {
           name: RoleName;
           permissions: Permission[];
         };
+        universityId: string | null;
+        facultyId: string | null;
+        departmentId: string | null;
       };
     }
   }

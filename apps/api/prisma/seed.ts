@@ -24,36 +24,6 @@ async function main() {
   const roleMap = Object.fromEntries(roles.map((r) => [r.name, r]));
   console.log(`  Created ${roles.length} roles`);
 
-  // ── Super Admin ──
-  const adminHash = await hashPassword("admin123");
-  const superAdmin = await prisma.user.upsert({
-    where: { email: "admin@university.edu" },
-    update: {},
-    create: {
-      firstName: "Super",
-      lastName: "Admin",
-      email: "admin@university.edu",
-      passwordHash: adminHash,
-      roleId: roleMap.SUPER_ADMIN.id,
-    },
-  });
-  console.log(`  Super admin: ${superAdmin.email}`);
-
-  // ── Admin HR ──
-  const hrHash = await hashPassword("hr1234");
-  const hrAdmin = await prisma.user.upsert({
-    where: { email: "hr@university.edu" },
-    update: {},
-    create: {
-      firstName: "HR",
-      lastName: "Administrator",
-      email: "hr@university.edu",
-      passwordHash: hrHash,
-      roleId: roleMap.ADMIN_HR_ENROLLMENT.id,
-    },
-  });
-  console.log(`  HR Admin: ${hrAdmin.email}`);
-
   // ── University ──
   const university = await prisma.university.upsert({
     where: { code: "USTO" },
@@ -76,6 +46,73 @@ async function main() {
   ]);
   const seDept = departments[0];
   const aiDept = departments[1];
+
+  // ── Super Admin ──
+  const adminHash = await hashPassword("admin123");
+  const superAdmin = await prisma.user.upsert({
+    where: { email: "admin@university.edu" },
+    update: {},
+    create: {
+      firstName: "Super",
+      lastName: "Admin",
+      email: "admin@university.edu",
+      passwordHash: adminHash,
+      roleId: roleMap.SUPER_ADMIN.id,
+    },
+  });
+  console.log(`  Super Admin: ${superAdmin.email}`);
+
+  // ── Minister (read-only, all universities) ──
+  const ministerHash = await hashPassword("minister123");
+  const minister = await prisma.user.upsert({
+    where: { email: "minister@education.gov" },
+    update: {},
+    create: {
+      firstName: "Minister",
+      lastName: "Education",
+      email: "minister@education.gov",
+      passwordHash: ministerHash,
+      roleId: roleMap.MINISTER.id,
+      createdById: superAdmin.id,
+    },
+  });
+  console.log(`  Minister: ${minister.email}`);
+
+  // ── Super HR Admin (scoped to university, created by Super Admin) ──
+  const superHrHash = await hashPassword("superhr123");
+  const superHrAdmin = await prisma.user.upsert({
+    where: { email: "superhr@university.edu" },
+    update: {},
+    create: {
+      firstName: "Super HR",
+      lastName: "Manager",
+      email: "superhr@university.edu",
+      passwordHash: superHrHash,
+      roleId: roleMap.SUPER_HR_ADMIN.id,
+      universityId: university.id,
+      createdById: superAdmin.id,
+    },
+  });
+  console.log(`  Super HR Admin: ${superHrAdmin.email}`);
+
+  // ── HR Admin (scoped to faculty + department, created by Super HR Admin) ──
+  const hrHash = await hashPassword("hr1234");
+  const hrAdmin = await prisma.user.upsert({
+    where: { email: "hr@university.edu" },
+    update: {},
+    create: {
+      firstName: "HR",
+      lastName: "Administrator",
+      email: "hr@university.edu",
+      passwordHash: hrHash,
+      roleId: roleMap.HR_ADMIN.id,
+      universityId: university.id,
+      facultyId: csFaculty.id,
+      departmentId: seDept.id,
+      createdById: superHrAdmin.id,
+    },
+  });
+  console.log(`  HR Admin: ${hrAdmin.email}`);
 
   // ── Specialities ──
   const specialities = await Promise.all([
@@ -174,12 +211,11 @@ async function main() {
     prisma.moduleSession.create({ data: { moduleId: modules[3].id, dayOfWeek: 2, startTime: "10:00", endTime: "11:30" } }),
     prisma.moduleSession.create({ data: { moduleId: modules[3].id, dayOfWeek: 5, startTime: "08:00", endTime: "09:30" } }),
     prisma.moduleSession.create({ data: { moduleId: modules[4].id, dayOfWeek: 3, startTime: "14:00", endTime: "15:30" } }),
-    // Add a session for today to make demo testing easier
     prisma.moduleSession.create({ data: { moduleId: modules[0].id, dayOfWeek: today, startTime: "00:00", endTime: "23:59" } }),
   ]);
   console.log(`  Created ${sessions.length} module sessions`);
 
-  // ── Professors ──
+  // ── Professors (created by Super HR Admin) ──
   const profHash = await hashPassword("prof123");
   const professors = await Promise.all([
     prisma.user.create({
@@ -189,6 +225,10 @@ async function main() {
         email: "benali@university.edu",
         passwordHash: profHash,
         roleId: roleMap.PROFESSOR.id,
+        universityId: university.id,
+        facultyId: csFaculty.id,
+        departmentId: seDept.id,
+        createdById: superHrAdmin.id,
       },
     }),
     prisma.user.create({
@@ -198,6 +238,10 @@ async function main() {
         email: "zohra@university.edu",
         passwordHash: profHash,
         roleId: roleMap.PROFESSOR.id,
+        universityId: university.id,
+        facultyId: csFaculty.id,
+        departmentId: aiDept.id,
+        createdById: superHrAdmin.id,
       },
     }),
   ]);
@@ -231,17 +275,15 @@ async function main() {
           email: `student${studentIndex + 1}@university.edu`,
           studentId: `STU${String(studentIndex + 1).padStart(4, "0")}`,
           classGroupId: cg.id,
-          roleId: roleMap.PROFESSOR.id, // students use minimal role
+          roleId: roleMap.PROFESSOR.id,
         },
       });
 
-      // RFID card
       const rfidUid = `RFID${String(studentIndex + 1).padStart(6, "0")}`;
       await prisma.rFIDCard.create({
         data: { uid: rfidUid, userId: student.id },
       });
 
-      // Face templates (mock)
       const templates = Array.from({ length: 10 }, (_, j) => ({
         userId: student.id,
         embedding: randomEmbedding(),
@@ -257,8 +299,6 @@ async function main() {
   console.log(`  Created ${students.length} students with RFID + face templates`);
 
   // ── Attendance Logs (30 days of demo data) ──
-  const statuses = ["PRESENT", "FAILED", "CHECKED_OUT"] as const;
-  const results = ["MATCH", "MISMATCH"] as const;
   let logCount = 0;
 
   for (let dayOffset = 29; dayOffset >= 0; dayOffset--) {
@@ -267,24 +307,19 @@ async function main() {
     date.setHours(0, 0, 0, 0);
     const dayOfWeek = date.getDay();
 
-    // Find sessions for this day
     const daySessions = await prisma.moduleSession.findMany({
       where: { dayOfWeek },
       include: { module: true },
     });
 
     for (const session of daySessions) {
-      // Find students in this module's class group
-      const classStudents = students.filter(
-        (s) => classGroups.find((cg) => cg.id === session.module.classGroupId)
-      );
       const groupStudents = await prisma.user.findMany({
         where: { classGroupId: session.module.classGroupId, studentId: { not: null } },
         include: { rfidCard: true },
       });
 
       for (const student of groupStudents) {
-        if (Math.random() < 0.2) continue; // 20% skip
+        if (Math.random() < 0.2) continue;
 
         const isMatch = Math.random() > 0.15;
         const score = isMatch
@@ -338,10 +373,12 @@ async function main() {
 
   console.log("\nSeed complete!");
   console.log("Demo credentials:");
-  console.log("  Super Admin:  admin@university.edu / admin123");
-  console.log("  HR Admin:     hr@university.edu / hr1234");
-  console.log("  Professor:    benali@university.edu / prof123");
-  console.log("  Professor:    zohra@university.edu / prof123");
+  console.log("  Minister:       minister@education.gov / minister123");
+  console.log("  Super Admin:    admin@university.edu / admin123");
+  console.log("  Super HR Admin: superhr@university.edu / superhr123");
+  console.log("  HR Admin:       hr@university.edu / hr1234");
+  console.log("  Professor:      benali@university.edu / prof123");
+  console.log("  Professor:      zohra@university.edu / prof123");
 }
 
 main()

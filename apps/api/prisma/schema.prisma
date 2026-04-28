@@ -35,8 +35,10 @@ enum BuzzerFeedback {
 }
 
 enum RoleName {
+  MINISTER
   SUPER_ADMIN
-  ADMIN_HR_ENROLLMENT
+  SUPER_HR_ADMIN
+  HR_ADMIN
   PROFESSOR
 }
 
@@ -45,9 +47,10 @@ enum RoleName {
 model University {
   id        String    @id @default(cuid())
   name      String    @unique
-  code      String    @unique
+  code      String?   @unique
   faculties Faculty[]
   rooms     Room[]
+  users     User[]
   createdAt DateTime  @default(now())
 
   @@map("universities")
@@ -59,18 +62,21 @@ model Faculty {
   universityId String
   university   University   @relation(fields: [universityId], references: [id], onDelete: Cascade)
   departments  Department[]
+  users        User[]
   createdAt    DateTime     @default(now())
 
   @@map("faculties")
 }
 
 model Department {
-  id           String       @id @default(cuid())
-  name         String
-  facultyId    String
-  faculty      Faculty      @relation(fields: [facultyId], references: [id], onDelete: Cascade)
-  specialities Speciality[]
-  createdAt    DateTime     @default(now())
+  id                    String                @id @default(cuid())
+  name                  String
+  facultyId             String
+  faculty               Faculty               @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  specialities          Speciality[]
+  users                 User[]
+  professorDepartments  ProfessorDepartment[]
+  createdAt             DateTime              @default(now())
 
   @@map("departments")
 }
@@ -116,13 +122,13 @@ model Room {
 model Module {
   id             String            @id @default(cuid())
   name           String
-  code           String            @unique
+  code           String?           @unique
   classGroupId   String
   classGroup     ClassGroup        @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
   roomId         String?
   room           Room?             @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  startDate      DateTime
-  endDate        DateTime
+  startDate      DateTime?
+  endDate        DateTime?
   professors     ProfessorModule[]
   sessions       ModuleSession[]
   attendanceLogs AttendanceLog[]
@@ -154,6 +160,17 @@ model ProfessorModule {
   @@map("professor_modules")
 }
 
+model ProfessorDepartment {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@map("professor_departments")
+}
+
 // ── Core ──
 
 model Role {
@@ -174,19 +191,30 @@ model User {
   email            String            @unique
   passwordHash     String?
   phone            String?
+  avatarUrl        String?
   studentId        String?           @unique
   classGroupId     String?
   classGroup       ClassGroup?       @relation(fields: [classGroupId], references: [id], onDelete: SetNull)
   isActive         Boolean           @default(true)
   roleId           String
   role             Role              @relation(fields: [roleId], references: [id])
+  universityId     String?
+  university       University?       @relation(fields: [universityId], references: [id])
+  facultyId        String?
+  faculty          Faculty?          @relation(fields: [facultyId], references: [id])
+  departmentId     String?
+  department       Department?       @relation(fields: [departmentId], references: [id])
+  createdById      String?
+  createdBy        User?             @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdUsers     User[]            @relation("CreatedByUser")
   rfidCard         RFIDCard?
   faceTemplates    FaceTemplate[]
   attendanceLogs   AttendanceLog[]
   accessLogs       AccessLog[]
-  professorModules ProfessorModule[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  professorModules      ProfessorModule[]
+  professorDepartments  ProfessorDepartment[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   @@map("users")
 }

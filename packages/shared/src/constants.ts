@@ -14,9 +14,30 @@ export const PAGINATION_DEFAULTS = {
 } as const;
 
 export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
+  [RoleName.MINISTER]: [
+    Permission.VIEW_DASHBOARD,
+    Permission.VIEW_ATTENDANCE,
+    Permission.VIEW_CHARTS,
+    Permission.VIEW_USERS,
+    Permission.MANAGE_SETTINGS,
+  ],
+
   [RoleName.SUPER_ADMIN]: Object.values(Permission),
 
-  [RoleName.ADMIN_HR_ENROLLMENT]: [
+  [RoleName.SUPER_HR_ADMIN]: [
+    Permission.VIEW_DASHBOARD,
+    Permission.VIEW_ATTENDANCE,
+    Permission.VIEW_USERS,
+    Permission.MANAGE_USERS,
+    Permission.MANAGE_STAFF,
+    Permission.ACCESS_ENROLLMENT,
+    Permission.VIEW_CHARTS,
+    Permission.ACCESS_VERIFICATION,
+    Permission.MANAGE_MASTER_DATA,
+    Permission.MANAGE_MODULES,
+  ],
+
+  [RoleName.HR_ADMIN]: [
     Permission.VIEW_DASHBOARD,
     Permission.VIEW_ATTENDANCE,
     Permission.VIEW_USERS,
@@ -42,9 +63,10 @@ export const NAV_ITEMS = [
   { label: "Master Data", href: "/master-data", permission: Permission.MANAGE_MASTER_DATA, icon: "Database" },
   { label: "Modules", href: "/modules", permission: Permission.MANAGE_MODULES, icon: "BookOpen" },
   { label: "Enrollment", href: "/enrollment", permission: Permission.ACCESS_ENROLLMENT, icon: "UserPlus" },
-  { label: "Users", href: "/users", permission: Permission.VIEW_USERS, icon: "Users" },
-  { label: "My Students", href: "/attendance", permission: Permission.VIEW_OWN_ATTENDANCE, icon: "GraduationCap" },
+  { label: "Staff", href: "/staff", permission: Permission.MANAGE_STAFF, icon: "UserCog" },
+  { label: "Students", href: "/users", permission: Permission.VIEW_USERS, icon: "Users" },
+  { label: "My Students", href: "/attendance", permission: Permission.VIEW_OWN_ATTENDANCE, icon: "GraduationCap", hideIfPermission: Permission.VIEW_ATTENDANCE },
   { label: "Verification Test", href: "/verification", permission: Permission.ACCESS_VERIFICATION, icon: "ScanFace" },
-  { label: "Settings", href: "/settings", permission: Permission.MANAGE_SETTINGS, icon: "Settings" },
+  { label: "Settings", href: "/settings", permission: Permission.VIEW_DASHBOARD, icon: "Settings" },
   { label: "Roles", href: "/roles", permission: Permission.MANAGE_ROLES, icon: "Shield" },
 ] as const;

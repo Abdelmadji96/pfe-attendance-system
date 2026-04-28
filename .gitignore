@@ -8,6 +8,8 @@ dist/
 .env.*.local
 uploads/faces/*
 !uploads/faces/.gitkeep
+uploads/avatars/*
+!uploads/avatars/.gitkeep
 *.log
 .DS_Store
 coverage/

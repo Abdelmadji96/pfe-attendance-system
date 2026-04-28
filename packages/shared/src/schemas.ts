@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AttendanceStatus, VerificationResult } from "./enums";
+import { AttendanceStatus, RoleName, VerificationResult } from "./enums";
 
 // ── Auth ──
 
@@ -19,7 +19,7 @@ export const registerAdminSchema = z.object({
 
 export const createUniversitySchema = z.object({
   name: z.string().min(1, "University name is required"),
-  code: z.string().min(1, "University code is required"),
+  code: z.string().optional(),
 });
 
 export const createFacultySchema = z.object({
@@ -95,11 +95,11 @@ export const updateUserSchema = z.object({
 
 export const createModuleSchema = z.object({
   name: z.string().min(1, "Module name is required"),
-  code: z.string().min(1, "Module code is required"),
+  code: z.string().optional(),
   classGroupId: z.string().min(1, "Class/Group is required"),
   roomId: z.string().optional(),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export const updateModuleSchema = z.object({
@@ -185,6 +185,29 @@ export const updateSettingsSchema = z.object({
       value: z.string().min(1),
     })
   ),
+});
+
+// ── Staff ──
+
+export const createStaffSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  phone: z.string().optional(),
+  role: z.nativeEnum(RoleName, { required_error: "Role is required" }),
+  universityId: z.string().optional(),
+  facultyId: z.string().optional(),
+  departmentId: z.string().optional(),
+  departmentIds: z.array(z.string()).optional(),
+});
+
+export const updateStaffSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  isActive: z.boolean().optional(),
 });
 
 // ── Roles ──
