@@ -9,8 +9,8 @@ export const usersRouter = Router();
 
 usersRouter.use(authenticate);
 
-usersRouter.get("/", userController.getAll);
-usersRouter.get("/:id", userController.getById);
+usersRouter.get("/", authorize(Permission.VIEW_USERS, Permission.VIEW_OWN_STUDENTS), userController.getAll);
+usersRouter.get("/:id", authorize(Permission.VIEW_USERS, Permission.VIEW_OWN_STUDENTS), userController.getById);
 usersRouter.post("/", authorize(Permission.MANAGE_USERS), validate(createUserSchema), userController.create);
 usersRouter.patch("/:id", authorize(Permission.MANAGE_USERS), validate(updateUserSchema), userController.update);
 usersRouter.delete("/:id", authorize(Permission.MANAGE_USERS), userController.delete);

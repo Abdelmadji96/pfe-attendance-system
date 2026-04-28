@@ -66,11 +66,39 @@ function mapUserToDto(user: any) {
           assignedAt: user.rfidCard.assignedAt.toISOString(),
         }
       : null,
+    universityId: user.universityId ?? null,
+    university: user.university
+      ? { id: user.university.id, name: user.university.name, code: user.university.code, createdAt: user.university.createdAt?.toISOString() }
+      : null,
+    facultyId: user.facultyId ?? null,
+    faculty: user.faculty
+      ? { id: user.faculty.id, name: user.faculty.name, universityId: user.faculty.universityId }
+      : null,
+    departmentId: user.departmentId ?? null,
+    department: user.department
+      ? { id: user.department.id, name: user.department.name, facultyId: user.department.facultyId }
+      : null,
+    createdById: user.createdById ?? null,
     professorModules: user.professorModules?.map((pm: any) => ({
       id: pm.id,
       userId: pm.userId,
       moduleId: pm.moduleId,
       module: pm.module ? { id: pm.module.id, name: pm.module.name, code: pm.module.code } : undefined,
+    })),
+    professorDepartments: user.professorDepartments?.map((pd: any) => ({
+      id: pd.id,
+      userId: pd.userId,
+      departmentId: pd.departmentId,
+      department: pd.department
+        ? {
+            id: pd.department.id,
+            name: pd.department.name,
+            facultyId: pd.department.facultyId,
+            faculty: pd.department.faculty
+              ? { id: pd.department.faculty.id, name: pd.department.faculty.name, universityId: pd.department.faculty.universityId }
+              : undefined,
+          }
+        : undefined,
     })),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

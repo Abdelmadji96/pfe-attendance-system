@@ -12,6 +12,10 @@ const userIncludes = {
   },
   rfidCard: true,
   professorModules: { include: { module: true } },
+  professorDepartments: { include: { department: { include: { faculty: true } } } },
+  university: true,
+  faculty: true,
+  department: true,
 } satisfies Prisma.UserInclude;
 
 export const userRepository = {

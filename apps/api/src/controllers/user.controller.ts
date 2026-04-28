@@ -16,15 +16,28 @@ export const userController = {
         return res.json({ success: true, ...result });
       }
 
+      // Scope filters based on role hierarchy
+      let universityId = req.query.universityId as string;
+      let facultyId = req.query.facultyId as string;
+      let departmentId = req.query.departmentId as string;
+
+      if (userRole === RoleName.SUPER_HR_ADMIN && req.user!.universityId) {
+        universityId = req.user!.universityId;
+      } else if (userRole === RoleName.HR_ADMIN) {
+        if (req.user!.universityId) universityId = req.user!.universityId;
+        if (req.user!.facultyId) facultyId = req.user!.facultyId;
+        if (req.user!.departmentId) departmentId = req.user!.departmentId;
+      }
+
       const result = await userService.getAll({
         page: parseInt(req.query.page as string) || 1,
         limit: parseInt(req.query.limit as string) || 20,
         search: req.query.search as string,
         classGroupId: req.query.classGroupId as string,
         specialityId: req.query.specialityId as string,
-        departmentId: req.query.departmentId as string,
-        facultyId: req.query.facultyId as string,
-        universityId: req.query.universityId as string,
+        departmentId,
+        facultyId,
+        universityId,
       });
       res.json({ success: true, ...result });
     } catch (error) {
