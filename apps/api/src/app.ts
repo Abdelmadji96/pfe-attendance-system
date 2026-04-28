@@ -12,6 +12,7 @@ import { rolesRouter } from "./routes/roles.routes";
 import { settingsRouter } from "./routes/settings.routes";
 import { masterDataRouter } from "./routes/master-data.routes";
 import { modulesRouter } from "./routes/module.routes";
+import { staffRouter } from "./routes/staff.routes";
 
 export const app = express();
 
@@ -35,5 +36,6 @@ app.use("/api/roles", rolesRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/master-data", masterDataRouter);
 app.use("/api/modules", modulesRouter);
+app.use("/api/staff", staffRouter);
 
 app.use(errorHandler);
