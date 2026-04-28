@@ -31,3 +31,28 @@ export const uploadFaceImages = multer({
     }
   },
 });
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    const dir = path.resolve(__dirname, "../../uploads/avatars");
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const userId = req.user?.id || "unknown";
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar_${userId}_${Date.now()}${ext}`);
+  },
+});
+
+export const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Invalid file type. Allowed: ${ALLOWED_IMAGE_TYPES.join(", ")}`));
+    }
+  },
+});

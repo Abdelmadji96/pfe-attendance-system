@@ -13,12 +13,17 @@ function toAuthUser(user: any): AuthUser {
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
+    phone: user.phone ?? null,
+    avatarUrl: user.avatarUrl ?? null,
     role: {
       id: user.role.id,
       name: user.role.name,
       permissions: user.role.permissions as Permission[],
       createdAt: user.role.createdAt.toISOString(),
     },
+    universityId: user.universityId ?? null,
+    facultyId: user.facultyId ?? null,
+    departmentId: user.departmentId ?? null,
   };
 }
 
@@ -72,5 +77,36 @@ export const authService = {
     const user = await userRepository.findById(userId);
     if (!user) throw ApiError.notFound("User not found");
     return toAuthUser(user);
+  },
+
+  async updateProfile(userId: string, data: { firstName?: string; lastName?: string; email?: string; phone?: string }): Promise<AuthUser> {
+    const user = await userRepository.findById(userId);
+    if (!user) throw ApiError.notFound("User not found");
+
+    if (data.email && data.email !== user.email) {
+      const existing = await userRepository.findByEmail(data.email);
+      if (existing) throw ApiError.conflict("Email already in use");
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.firstName && { firstName: data.firstName }),
+        ...(data.lastName && { lastName: data.lastName }),
+        ...(data.email && { email: data.email }),
+        ...(data.phone !== undefined && { phone: data.phone || null }),
+      },
+      include: { role: true },
+    });
+    return toAuthUser(updated);
+  },
+
+  async updateAvatar(userId: string, avatarUrl: string): Promise<AuthUser> {
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl },
+      include: { role: true },
+    });
+    return toAuthUser(updated);
   },
 };

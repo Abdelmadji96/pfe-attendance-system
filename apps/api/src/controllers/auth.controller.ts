@@ -28,4 +28,26 @@ export const authController = {
       next(error);
     }
   },
+
+  async updateProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = await authService.updateProfile(req.user!.id, req.body);
+      res.json({ success: true, data: user });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  async uploadAvatar(req: Request, res: Response, next: NextFunction) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: "No file uploaded" });
+      }
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      const user = await authService.updateAvatar(req.user!.id, avatarUrl);
+      res.json({ success: true, data: { user, avatarUrl } });
+    } catch (error) {
+      next(error);
+    }
+  },
 };
