@@ -5,8 +5,8 @@ import { prisma } from "../config/prisma";
 import type { CreateModuleInput, UpdateModuleInput, CreateModuleSessionInput } from "@pfe/shared";
 
 export const moduleService = {
-  async getAll(classGroupId?: string) {
-    return moduleRepository.findAll(classGroupId);
+  async getAll(params?: { classGroupId?: string; universityId?: string; departmentId?: string }) {
+    return moduleRepository.findAll(params);
   },
 
   async getById(id: string) {
@@ -23,13 +23,15 @@ export const moduleService = {
     const classGroup = await prisma.classGroup.findUnique({ where: { id: input.classGroupId } });
     if (!classGroup) throw ApiError.notFound("Class group not found");
 
+    const code = input.code || `${input.name.replace(/\s+/g, "-").toUpperCase().slice(0, 10)}-${Date.now().toString(36)}`;
+
     return moduleRepository.create({
       name: input.name,
-      code: input.code,
+      code,
       classGroup: { connect: { id: input.classGroupId } },
       room: input.roomId ? { connect: { id: input.roomId } } : undefined,
-      startDate: new Date(input.startDate),
-      endDate: new Date(input.endDate),
+      startDate: input.startDate ? new Date(input.startDate) : undefined,
+      endDate: input.endDate ? new Date(input.endDate) : undefined,
     });
   },
 

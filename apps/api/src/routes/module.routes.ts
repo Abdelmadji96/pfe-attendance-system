@@ -15,9 +15,9 @@ export const modulesRouter = Router();
 
 modulesRouter.use(authenticate);
 
-modulesRouter.get("/", moduleController.getAll);
+modulesRouter.get("/", authorize(Permission.MANAGE_MODULES, Permission.VIEW_DASHBOARD), moduleController.getAll);
 modulesRouter.get("/my-modules", moduleController.getByProfessor);
-modulesRouter.get("/:id", moduleController.getById);
+modulesRouter.get("/:id", authorize(Permission.MANAGE_MODULES, Permission.VIEW_DASHBOARD), moduleController.getById);
 modulesRouter.post("/", authorize(Permission.MANAGE_MODULES), validate(createModuleSchema), moduleController.create);
 modulesRouter.patch("/:id", authorize(Permission.MANAGE_MODULES), validate(updateModuleSchema), moduleController.update);
 modulesRouter.delete("/:id", authorize(Permission.MANAGE_MODULES), moduleController.delete);

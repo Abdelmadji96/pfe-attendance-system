@@ -15,9 +15,17 @@ const moduleIncludes = {
 } satisfies Prisma.ModuleInclude;
 
 export const moduleRepository = {
-  findAll(classGroupId?: string) {
+  findAll(params?: { classGroupId?: string; universityId?: string; departmentId?: string }) {
+    const where: Prisma.ModuleWhereInput = {};
+    if (params?.classGroupId) {
+      where.classGroupId = params.classGroupId;
+    } else if (params?.departmentId) {
+      where.classGroup = { speciality: { departmentId: params.departmentId } };
+    } else if (params?.universityId) {
+      where.classGroup = { speciality: { department: { faculty: { universityId: params.universityId } } } };
+    }
     return prisma.module.findMany({
-      where: classGroupId ? { classGroupId } : undefined,
+      where,
       include: moduleIncludes,
       orderBy: { name: "asc" },
     });

@@ -1,10 +1,19 @@
 import { Request, Response, NextFunction } from "express";
 import { moduleService } from "../services/module.service";
+import { RoleName } from "@pfe/shared";
 
 export const moduleController = {
   async getAll(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await moduleService.getAll(req.query.classGroupId as string | undefined);
+      const role = req.user!.role.name;
+      const params: { classGroupId?: string; universityId?: string; departmentId?: string } = {};
+      if (req.query.classGroupId) params.classGroupId = req.query.classGroupId as string;
+      if (role === RoleName.HR_ADMIN) {
+        params.departmentId = req.user!.departmentId ?? undefined;
+      } else if (role === RoleName.SUPER_HR_ADMIN) {
+        params.universityId = req.user!.universityId ?? undefined;
+      }
+      const data = await moduleService.getAll(params);
       res.json({ success: true, data });
     } catch (e) { next(e); }
   },
