@@ -24,9 +24,9 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-export function usePermission(permission: Permission): boolean {
+export function usePermission(permission: Permission | null | undefined): boolean {
   const { user } = useAuth();
-  if (!user) return false;
+  if (!user || !permission) return false;
   const roleName = user.role.name as RoleName;
   const permissions = ROLE_PERMISSIONS[roleName] || [];
   return permissions.includes(permission);

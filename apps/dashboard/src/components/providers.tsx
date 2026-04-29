@@ -4,6 +4,7 @@ import { useState, useEffect, ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { AuthContext } from "@/hooks/use-auth";
+import { I18nProvider } from "@/lib/i18n";
 import type { AuthUser } from "@pfe/shared";
 import api from "@/lib/api";
 
@@ -55,7 +56,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider>{children}</I18nProvider>
+      </QueryClientProvider>
     </AuthContext.Provider>
   );
 }
