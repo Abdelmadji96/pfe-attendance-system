@@ -10,7 +10,19 @@ const config: Config = {
       screens: { "2xl": "1400px" },
     },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "var(--font-arabic)", "sans-serif"],
+      },
       colors: {
+        biskra: {
+          primary: "var(--biskra-primary)",
+          "primary-light": "var(--biskra-primary-light)",
+          "primary-dark": "var(--biskra-primary-dark)",
+          secondary: "var(--biskra-secondary)",
+          "secondary-light": "var(--biskra-secondary-light)",
+          gold: "var(--biskra-gold)",
+          "gold-light": "var(--biskra-gold-light)",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -49,6 +61,29 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "slide-in-from-top": {
+          from: { transform: "translateY(-10px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        "pulse-subtle": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.85" },
+        },
+      },
+      animation: {
+        "fade-in": "fade-in 0.3s ease-out",
+        "slide-in-from-top": "slide-in-from-top 0.3s ease-out",
+        "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
+      },
+      boxShadow: {
+        biskra: "0 4px 14px 0 rgba(27, 94, 32, 0.15)",
+        "biskra-lg": "0 10px 25px -3px rgba(27, 94, 32, 0.2)",
       },
     },
   },
