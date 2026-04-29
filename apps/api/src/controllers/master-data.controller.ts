@@ -1,7 +1,53 @@
 import { Request, Response, NextFunction } from "express";
 import { masterDataService } from "../services/master-data.service";
+import { prisma } from "../config/prisma";
+
+const LEVELS_SETTING_KEY = "academic_levels";
+const DEFAULT_LEVELS = ["L1", "L2", "L3", "M1", "M2"];
 
 export const masterDataController = {
+  async getLevels(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const setting = await prisma.setting.findUnique({ where: { key: LEVELS_SETTING_KEY } });
+      const levels: string[] = setting ? JSON.parse(setting.value) : DEFAULT_LEVELS;
+      res.json({ success: true, data: levels });
+    } catch (e) { next(e); }
+  },
+  async addLevel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== "string") {
+        return res.status(400).json({ success: false, message: "Level name is required" });
+      }
+      const setting = await prisma.setting.findUnique({ where: { key: LEVELS_SETTING_KEY } });
+      const levels: string[] = setting ? JSON.parse(setting.value) : DEFAULT_LEVELS;
+      if (levels.includes(name.trim())) {
+        return res.status(409).json({ success: false, message: "Level already exists" });
+      }
+      levels.push(name.trim());
+      await prisma.setting.upsert({
+        where: { key: LEVELS_SETTING_KEY },
+        update: { value: JSON.stringify(levels) },
+        create: { key: LEVELS_SETTING_KEY, value: JSON.stringify(levels) },
+      });
+      res.status(201).json({ success: true, data: levels });
+    } catch (e) { next(e); }
+  },
+  async deleteLevel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const levelName = req.params.name;
+      const setting = await prisma.setting.findUnique({ where: { key: LEVELS_SETTING_KEY } });
+      const levels: string[] = setting ? JSON.parse(setting.value) : DEFAULT_LEVELS;
+      const filtered = levels.filter((l) => l !== levelName);
+      await prisma.setting.upsert({
+        where: { key: LEVELS_SETTING_KEY },
+        update: { value: JSON.stringify(filtered) },
+        create: { key: LEVELS_SETTING_KEY, value: JSON.stringify(filtered) },
+      });
+      res.json({ success: true, data: filtered });
+    } catch (e) { next(e); }
+  },
+
   async getUniversities(_req: Request, res: Response, next: NextFunction) {
     try {
       const data = await masterDataService.getUniversities();

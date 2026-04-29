@@ -48,5 +48,10 @@ masterDataRouter.get("/rooms", masterDataController.getRooms);
 masterDataRouter.post("/rooms", authorize(Permission.MANAGE_MASTER_DATA), validate(createRoomSchema), masterDataController.createRoom);
 masterDataRouter.delete("/rooms/:id", authorize(Permission.MANAGE_MASTER_DATA), masterDataController.deleteRoom);
 
+// Levels
+masterDataRouter.get("/levels", masterDataController.getLevels);
+masterDataRouter.post("/levels", authorize(Permission.MANAGE_MASTER_DATA), masterDataController.addLevel);
+masterDataRouter.delete("/levels/:name", authorize(Permission.MANAGE_MASTER_DATA), masterDataController.deleteLevel);
+
 // CSV Import
 masterDataRouter.post("/import-csv", authorize(Permission.MANAGE_MASTER_DATA), validate(csvImportSchema), masterDataController.importCsv);
