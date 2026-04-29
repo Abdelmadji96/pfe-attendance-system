@@ -102,47 +102,179 @@ export const attendanceRepository = {
     return { data, total };
   },
 
-  async getStats(professorModuleIds?: string[]) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+  async getStats(professorModuleIds?: string[], universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
+    let rangeStart: Date;
+    let rangeEnd: Date;
+
+    if (dateFrom) {
+      rangeStart = new Date(dateFrom);
+      rangeEnd = dateTo ? new Date(dateTo) : new Date();
+      rangeEnd.setDate(rangeEnd.getDate() + 1);
+    } else {
+      rangeStart = new Date();
+      rangeStart.setHours(0, 0, 0, 0);
+      rangeEnd = new Date(rangeStart);
+      rangeEnd.setDate(rangeEnd.getDate() + 1);
+    }
 
     const moduleFilter = professorModuleIds ? { moduleId: { in: professorModuleIds } } : {};
+    const uniUserFilter: Prisma.UserWhereInput | undefined = departmentId
+      ? { classGroup: { speciality: { departmentId } } }
+      : universityId
+        ? { classGroup: { speciality: { department: { faculty: { universityId } } } } }
+        : undefined;
+    const uniLogFilter: Prisma.AttendanceLogWhereInput = uniUserFilter
+      ? { user: uniUserFilter }
+      : {};
 
-    const [totalUsers, todayLogs, todayFailed, avgScore] = await Promise.all([
-      prisma.user.count({ where: { studentId: { not: null } } }),
+    const dateFilter = { gte: rangeStart, lt: rangeEnd };
+
+    const [totalUsers, checkIns, failedAttempts, avgScore] = await Promise.all([
+      prisma.user.count({ where: { studentId: { not: null }, ...uniUserFilter } }),
       prisma.attendanceLog.count({
-        where: { checkInAt: { gte: today, lt: tomorrow }, ...moduleFilter },
+        where: { checkInAt: dateFilter, ...moduleFilter, ...uniLogFilter },
       }),
       prisma.attendanceLog.count({
-        where: { checkInAt: { gte: today, lt: tomorrow }, status: "FAILED", ...moduleFilter },
+        where: { checkInAt: dateFilter, status: "FAILED", ...moduleFilter, ...uniLogFilter },
       }),
       prisma.attendanceLog.aggregate({
         _avg: { similarityScore: true },
-        where: { similarityScore: { not: null }, checkInAt: { gte: today, lt: tomorrow }, ...moduleFilter },
+        where: { similarityScore: { not: null }, checkInAt: dateFilter, ...moduleFilter, ...uniLogFilter },
       }),
     ]);
 
     return {
       totalUsers,
-      todayCheckIns: todayLogs,
-      todayFailedAttempts: todayFailed,
+      todayCheckIns: checkIns,
+      todayFailedAttempts: failedAttempts,
       averageVerificationScore: Math.round((avgScore._avg.similarityScore || 0) * 100) / 100,
     };
   },
 
-  async getCheckInsPerDay(days = 30, professorModuleIds?: string[]) {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    since.setHours(0, 0, 0, 0);
+  async getDashboardStats(professorModuleIds?: string[], universityId?: string, departmentId?: string) {
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
+    const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7);
+    const monthStart = new Date(todayStart); monthStart.setDate(weekStart.getDate() - 30);
 
     const moduleFilter = professorModuleIds ? { moduleId: { in: professorModuleIds } } : {};
+    const uniUserFilter: Prisma.UserWhereInput | undefined = departmentId
+      ? { classGroup: { speciality: { departmentId } } }
+      : universityId
+        ? { classGroup: { speciality: { department: { faculty: { universityId } } } } }
+        : undefined;
+    const uniLogFilter: Prisma.AttendanceLogWhereInput = uniUserFilter ? { user: uniUserFilter } : {};
+    const studentFilter: Prisma.UserWhereInput = { studentId: { not: null }, ...uniUserFilter };
+
+    const [
+      totalStudents,
+      enrolledWithRfid,
+      enrolledWithFace,
+      todayCheckIns,
+      todayFailed,
+      yesterdayCheckIns,
+      weekCheckIns,
+      monthCheckIns,
+      todayAvgScore,
+      activeModules,
+      todayUniqueStudents,
+      recentLogs,
+    ] = await Promise.all([
+      prisma.user.count({ where: studentFilter }),
+      prisma.user.count({ where: { ...studentFilter, rfidCard: { isNot: null } } }),
+      prisma.user.count({ where: { ...studentFilter, faceTemplates: { some: {} } } }),
+      prisma.attendanceLog.count({ where: { checkInAt: { gte: todayStart, lt: todayEnd }, ...moduleFilter, ...uniLogFilter } }),
+      prisma.attendanceLog.count({ where: { checkInAt: { gte: todayStart, lt: todayEnd }, status: "FAILED", ...moduleFilter, ...uniLogFilter } }),
+      prisma.attendanceLog.count({ where: { checkInAt: { gte: yesterdayStart, lt: todayStart }, ...moduleFilter, ...uniLogFilter } }),
+      prisma.attendanceLog.count({ where: { checkInAt: { gte: weekStart, lt: todayEnd }, ...moduleFilter, ...uniLogFilter } }),
+      prisma.attendanceLog.count({ where: { checkInAt: { gte: monthStart, lt: todayEnd }, ...moduleFilter, ...uniLogFilter } }),
+      prisma.attendanceLog.aggregate({
+        _avg: { similarityScore: true },
+        where: { similarityScore: { not: null }, checkInAt: { gte: todayStart, lt: todayEnd }, ...moduleFilter, ...uniLogFilter },
+      }),
+      prisma.module.count({
+        where: {
+          startDate: { lte: now },
+          endDate: { gte: now },
+          ...(professorModuleIds ? { id: { in: professorModuleIds } } : {}),
+        },
+      }),
+      prisma.attendanceLog.groupBy({
+        by: ["userId"],
+        where: { checkInAt: { gte: todayStart, lt: todayEnd }, status: { not: "FAILED" }, ...moduleFilter, ...uniLogFilter },
+      }).then((r) => r.length),
+      prisma.attendanceLog.findMany({
+        where: { ...moduleFilter, ...uniLogFilter },
+        include: { user: { select: { firstName: true, lastName: true, studentId: true } }, module: { select: { name: true, code: true } } },
+        orderBy: { checkInAt: "desc" },
+        take: 5,
+      }),
+    ]);
+
+    const todaySuccessful = todayCheckIns - todayFailed;
+    const attendanceRate = totalStudents > 0 ? Math.round((todayUniqueStudents / totalStudents) * 100) : 0;
+    const rfidEnrollmentRate = totalStudents > 0 ? Math.round((enrolledWithRfid / totalStudents) * 100) : 0;
+    const faceEnrollmentRate = totalStudents > 0 ? Math.round((enrolledWithFace / totalStudents) * 100) : 0;
+    const successRate = todayCheckIns > 0 ? Math.round((todaySuccessful / todayCheckIns) * 100) : 0;
+    const avgScore = Math.round((todayAvgScore._avg.similarityScore || 0) * 100);
+
+    const todayVsYesterday = yesterdayCheckIns > 0
+      ? Math.round(((todayCheckIns - yesterdayCheckIns) / yesterdayCheckIns) * 100)
+      : todayCheckIns > 0 ? 100 : 0;
+
+    return {
+      totalStudents,
+      todayCheckIns,
+      todayFailed,
+      todaySuccessful,
+      yesterdayCheckIns,
+      weekCheckIns,
+      monthCheckIns,
+      todayUniqueStudents,
+      attendanceRate,
+      enrolledWithRfid,
+      enrolledWithFace,
+      rfidEnrollmentRate,
+      faceEnrollmentRate,
+      successRate,
+      avgVerificationScore: avgScore,
+      todayVsYesterday,
+      activeModules,
+      recentActivity: recentLogs.map((l) => ({
+        id: l.id,
+        studentName: `${l.user.firstName} ${l.user.lastName}`,
+        studentId: l.user.studentId,
+        module: l.module?.name || null,
+        status: l.status,
+        verificationResult: l.verificationResult,
+        time: l.checkInAt.toISOString(),
+      })),
+    };
+  },
+
+  async getCheckInsPerDay(professorModuleIds?: string[], universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
+    const since = dateFrom ? new Date(dateFrom) : new Date();
+    if (!dateFrom) {
+      since.setDate(since.getDate() - 30);
+    }
+    since.setHours(0, 0, 0, 0);
+
+    const until = dateTo ? new Date(dateTo) : new Date();
+    until.setDate(until.getDate() + 1);
+
+    const moduleFilter = professorModuleIds ? { moduleId: { in: professorModuleIds } } : {};
+    const uniLogFilter: Prisma.AttendanceLogWhereInput = departmentId
+      ? { user: { classGroup: { speciality: { departmentId } } } }
+      : universityId
+        ? { user: { classGroup: { speciality: { department: { faculty: { universityId } } } } } }
+        : {};
 
     const logs = await prisma.attendanceLog.groupBy({
       by: ["checkInAt"],
       _count: { id: true },
-      where: { checkInAt: { gte: since }, ...moduleFilter },
+      where: { checkInAt: { gte: since, lt: until }, ...moduleFilter, ...uniLogFilter },
     });
 
     const dailyMap = new Map<string, number>();
@@ -151,25 +283,36 @@ export const attendanceRepository = {
       dailyMap.set(dateKey, (dailyMap.get(dateKey) || 0) + log._count.id);
     }
 
+    const days = Math.ceil((until.getTime() - since.getTime()) / (1000 * 60 * 60 * 24));
     const result: { date: string; count: number }[] = [];
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    for (let i = 0; i < days; i++) {
+      const d = new Date(since);
+      d.setDate(d.getDate() + i);
       const key = d.toISOString().split("T")[0];
       result.push({ date: key, count: dailyMap.get(key) || 0 });
     }
     return result;
   },
 
-  async getPeakHours(professorModuleIds?: string[]) {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    weekAgo.setHours(0, 0, 0, 0);
+  async getPeakHours(professorModuleIds?: string[], universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
+    const since = dateFrom ? new Date(dateFrom) : new Date();
+    if (!dateFrom) {
+      since.setDate(since.getDate() - 7);
+    }
+    since.setHours(0, 0, 0, 0);
+
+    const until = dateTo ? new Date(dateTo) : new Date();
+    until.setDate(until.getDate() + 1);
 
     const moduleFilter = professorModuleIds ? { moduleId: { in: professorModuleIds } } : {};
+    const uniLogFilter: Prisma.AttendanceLogWhereInput = departmentId
+      ? { user: { classGroup: { speciality: { departmentId } } } }
+      : universityId
+        ? { user: { classGroup: { speciality: { department: { faculty: { universityId } } } } } }
+        : {};
 
     const logs = await prisma.attendanceLog.findMany({
-      where: { checkInAt: { gte: weekAgo }, ...moduleFilter },
+      where: { checkInAt: { gte: since, lt: until }, ...moduleFilter, ...uniLogFilter },
       select: { checkInAt: true },
     });
 
@@ -178,16 +321,29 @@ export const attendanceRepository = {
     return hourCounts.map((count, hour) => ({ hour, count }));
   },
 
-  async getByGroupData(professorModuleIds?: string[]) {
+  async getByGroupData(professorModuleIds?: string[], universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
     const moduleFilter = professorModuleIds ? { moduleId: { in: professorModuleIds } } : {};
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const uniLogFilter: Prisma.AttendanceLogWhereInput = departmentId
+      ? { user: { classGroup: { speciality: { departmentId } } } }
+      : universityId
+        ? { user: { classGroup: { speciality: { department: { faculty: { universityId } } } } } }
+        : {};
+
+    const since = dateFrom ? new Date(dateFrom) : new Date();
+    if (!dateFrom) {
+      since.setDate(since.getDate() - 30);
+    }
+    since.setHours(0, 0, 0, 0);
+
+    const until = dateTo ? new Date(dateTo) : new Date();
+    until.setDate(until.getDate() + 1);
 
     const logs = await prisma.attendanceLog.findMany({
       where: {
         userId: { not: null },
-        checkInAt: { gte: thirtyDaysAgo },
+        checkInAt: { gte: since, lt: until },
         ...moduleFilter,
+        ...uniLogFilter,
       },
       include: {
         user: { include: { classGroup: true } },

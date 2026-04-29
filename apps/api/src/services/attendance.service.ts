@@ -82,30 +82,38 @@ export const attendanceService = {
     };
   },
 
-  async getStats(professorUserId?: string) {
+  async getStats(professorUserId?: string, universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
     let professorModuleIds: string[] | undefined;
     if (professorUserId) {
       professorModuleIds = await getProfessorModuleIds(professorUserId);
     }
-    return attendanceRepository.getStats(professorModuleIds);
+    return attendanceRepository.getStats(professorModuleIds, universityId, departmentId, dateFrom, dateTo);
   },
 
-  async getCheckInsPerDay(professorUserId?: string) {
+  async getDashboardStats(professorUserId?: string, universityId?: string, departmentId?: string) {
     let professorModuleIds: string[] | undefined;
-    if (professorUserId) professorModuleIds = await getProfessorModuleIds(professorUserId);
-    return attendanceRepository.getCheckInsPerDay(30, professorModuleIds);
+    if (professorUserId) {
+      professorModuleIds = await getProfessorModuleIds(professorUserId);
+    }
+    return attendanceRepository.getDashboardStats(professorModuleIds, universityId, departmentId);
   },
 
-  async getPeakHours(professorUserId?: string) {
+  async getCheckInsPerDay(professorUserId?: string, universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
     let professorModuleIds: string[] | undefined;
     if (professorUserId) professorModuleIds = await getProfessorModuleIds(professorUserId);
-    return attendanceRepository.getPeakHours(professorModuleIds);
+    return attendanceRepository.getCheckInsPerDay(professorModuleIds, universityId, departmentId, dateFrom, dateTo);
   },
 
-  async getByGroupData(professorUserId?: string) {
+  async getPeakHours(professorUserId?: string, universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
     let professorModuleIds: string[] | undefined;
     if (professorUserId) professorModuleIds = await getProfessorModuleIds(professorUserId);
-    return attendanceRepository.getByGroupData(professorModuleIds);
+    return attendanceRepository.getPeakHours(professorModuleIds, universityId, departmentId, dateFrom, dateTo);
+  },
+
+  async getByGroupData(professorUserId?: string, universityId?: string, departmentId?: string, dateFrom?: string, dateTo?: string) {
+    let professorModuleIds: string[] | undefined;
+    if (professorUserId) professorModuleIds = await getProfessorModuleIds(professorUserId);
+    return attendanceRepository.getByGroupData(professorModuleIds, universityId, departmentId, dateFrom, dateTo);
   },
 
   async checkIn(data: {

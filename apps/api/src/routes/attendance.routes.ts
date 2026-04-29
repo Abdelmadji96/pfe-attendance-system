@@ -14,6 +14,7 @@ const viewCharts = authorize(Permission.VIEW_CHARTS);
 
 attendanceRouter.get("/", viewAttendance, attendanceController.getAll);
 attendanceRouter.get("/stats", viewAttendance, attendanceController.getStats);
+attendanceRouter.get("/dashboard-stats", viewAttendance, attendanceController.getDashboardStats);
 attendanceRouter.get("/charts/checkins-per-day", viewCharts, attendanceController.getCheckInsPerDay);
 attendanceRouter.get("/charts/peak-hours", viewCharts, attendanceController.getPeakHours);
 attendanceRouter.get("/charts/by-class-department", viewCharts, attendanceController.getByGroupData);
