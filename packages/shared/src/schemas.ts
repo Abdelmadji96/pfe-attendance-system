@@ -132,6 +132,37 @@ export const rfidAssignSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
 });
 
+// ── Enrollment ──
+
+export const enrollmentRfidScanSchema = z.object({
+  uid: z.string().min(1, "RFID UID is required"),
+  deviceId: z.string().optional(),
+});
+
+export const enrollmentCompleteSchema = z.object({
+  rfidUid: z.string().min(1, "RFID UID is required"),
+  userInfo: z.object({
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+    email: z.string().email("Invalid email address"),
+    phone: z.string().optional(),
+  }),
+  academicInfo: z.object({
+    studentCode: z.string().min(1, "Student code is required"),
+    classGroupId: z.string().min(1, "Class/Group is required"),
+    department: z.string().optional(),
+    level: z.string().optional(),
+    group: z.string().optional(),
+  }),
+  faceEnrollment: z
+    .object({
+      embedding: z.array(z.number()).min(1, "Embedding is required"),
+      imagePath: z.string().optional(),
+      model: z.string().optional(),
+    })
+    .optional(),
+});
+
 // ── Verification ──
 
 export const verifySchema = z.object({
