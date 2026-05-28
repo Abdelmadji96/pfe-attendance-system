@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Webcam from "react-webcam";
 import api from "@/lib/api";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, ChevronRight, Camera, Upload, X, Loader2 } from "lucide-react";
+import { CheckCircle, ChevronRight, Camera, Upload, X, Loader2, ScanLine, Radio } from "lucide-react";
 import { useUserScope } from "@/hooks/use-scope";
 
 function dataURLtoFile(dataUrl: string, filename: string): File {
@@ -45,7 +45,10 @@ export default function EnrollmentPage() {
   const [previews, setPreviews] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const webcamRef = useRef<Webcam>(null);
+  const lastPollUidRef = useRef<string | null>(null);
+  const manualEditRef = useRef(false);
   const [cameraActive, setCameraActive] = useState(false);
+  const [detectedRfidUid, setDetectedRfidUid] = useState<string | null>(null);
 
   const effectiveUniversityId = scope.isScoped ? scope.universityId! : universityId;
   const effectiveFacultyId = scope.isHrAdmin ? scope.facultyId! : facultyId;
@@ -58,6 +61,34 @@ export default function EnrollmentPage() {
   const { data: classGroups } = useQuery({ queryKey: ["classGroups", specialityId], queryFn: () => api.get(`/api/master-data/class-groups?specialityId=${specialityId}`).then((r) => r.data.data), enabled: !!specialityId });
 
   const selectedClassGroup = classGroups?.find((cg: any) => cg.id === classGroupId);
+  const selectedDepartment = departments?.find((d: any) => d.id === effectiveDepartmentId);
+
+  useEffect(() => {
+    if (step !== 0) return;
+
+    const poll = async () => {
+      try {
+        const res = await api.get("/api/enrollment/rfid-latest");
+        const uid = res.data.uid as string | null;
+        if (!uid) return;
+
+        if (uid !== lastPollUidRef.current) {
+          setRfidUid(uid);
+          setDetectedRfidUid(uid);
+          lastPollUidRef.current = uid;
+          manualEditRef.current = false;
+        } else if (!manualEditRef.current) {
+          setRfidUid((current) => (current !== uid ? uid : current));
+        }
+      } catch {
+        // ignore polling errors
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 1000);
+    return () => clearInterval(interval);
+  }, [step]);
 
   const STEPS = [
     t("rfid-scan"),
@@ -69,8 +100,16 @@ export default function EnrollmentPage() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const userRes = await api.post("/api/users", {
-        firstName, lastName, email, phone, studentId, classGroupId, rfidUid,
+      const userRes = await api.post("/api/enrollment/complete", {
+        rfidUid,
+        userInfo: { firstName, lastName, email, phone: phone || undefined },
+        academicInfo: {
+          studentCode: studentId,
+          classGroupId,
+          department: selectedDepartment?.name,
+          level: selectedClassGroup?.level,
+          group: selectedClassGroup?.name,
+        },
       });
       const userId = userRes.data.data.id;
 
@@ -81,6 +120,8 @@ export default function EnrollmentPage() {
           headers: { "Content-Type": "multipart/form-data" },
         });
       }
+
+      await api.post("/api/enrollment/rfid-clear");
       return userRes.data;
     },
     onSuccess: () => {
@@ -90,6 +131,9 @@ export default function EnrollmentPage() {
       setStudentId(""); setUniversityId(""); setFacultyId(""); setDepartmentId("");
       setSpecialityId(""); setClassGroupId(""); setImages([]); setPreviews([]);
       setCameraActive(false);
+      setDetectedRfidUid(null);
+      lastPollUidRef.current = null;
+      manualEditRef.current = false;
       alert(t("enrollment-success"));
     },
   });
@@ -154,9 +198,32 @@ export default function EnrollmentPage() {
         <CardContent className="pt-6 space-y-4">
           {step === 0 && (
             <div className="space-y-4 max-w-md">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+                <ScanLine className="h-5 w-5 text-primary shrink-0" />
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    <Radio className="h-3.5 w-3.5 text-green-600 animate-pulse" />
+                    {t("rfid-listening-pi")}
+                  </p>
+                </div>
+              </div>
               <Label>{t("rfid-card-uid")}</Label>
-              <Input placeholder={t("scan-enter-rfid")} value={rfidUid} onChange={(e) => setRfidUid(e.target.value)} autoFocus />
+              <Input
+                placeholder={t("scan-enter-rfid")}
+                value={rfidUid}
+                onChange={(e) => {
+                  manualEditRef.current = true;
+                  setRfidUid(e.target.value);
+                }}
+                autoFocus
+              />
+              {detectedRfidUid && (
+                <p className="text-sm text-green-700 font-medium">
+                  {t("rfid-card-detected").replace("{uid}", detectedRfidUid)}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">{t("tap-rfid-card")}</p>
+              <p className="text-sm text-muted-foreground">{t("rfid-then-next")}</p>
             </div>
           )}
 
