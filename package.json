@@ -10,7 +10,9 @@
     "db:migrate": "pnpm --filter api exec prisma migrate dev",
     "db:push": "pnpm --filter api exec prisma db push",
     "db:seed": "pnpm --filter api exec prisma db seed",
-    "db:studio": "pnpm --filter api exec prisma studio"
+    "db:studio": "pnpm --filter api exec prisma studio",
+    "pi:rfid:test": "cd raspberry-pi && python3 enrollment_rfid_sender.py --test-connectivity",
+    "pi:rfid:send-test": "cd raspberry-pi && python3 enrollment_rfid_sender.py --send-test TEST123456"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

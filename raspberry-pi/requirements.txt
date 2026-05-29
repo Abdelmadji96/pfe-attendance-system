@@ -1,0 +1,7 @@
+requests
+python-dotenv
+mfrc522
+spidev
+# GPIO is NOT listed here — Pi model-specific (see README Pi 5 section):
+#   Pi 5: sudo apt install python3-rpi-lgpio && venv --system-site-packages
+#   Pi 4: pip install RPi.GPIO
