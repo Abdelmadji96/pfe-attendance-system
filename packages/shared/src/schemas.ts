@@ -117,6 +117,12 @@ export const createModuleSessionSchema = z.object({
   endTime: z.string().regex(/^\d{2}:\d{2}$/, "Format HH:MM"),
 });
 
+export const updateModuleSessionSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6).optional(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Format HH:MM").optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Format HH:MM").optional(),
+});
+
 export const assignProfessorSchema = z.object({
   userId: z.string().min(1, "Professor user ID is required"),
 });
@@ -168,6 +174,12 @@ export const enrollmentCompleteSchema = z.object({
 export const verifySchema = z.object({
   rfidUid: z.string().min(1, "RFID UID is required"),
   liveImageBase64: z.string().optional(),
+});
+
+export const gateVerifySchema = z.object({
+  rfidUid: z.string().min(1, "RFID UID is required"),
+  liveEmbedding: z.array(z.number()).min(1, "Face embedding is required"),
+  deviceId: z.string().optional(),
 });
 
 export const mockEntrySchema = z.object({

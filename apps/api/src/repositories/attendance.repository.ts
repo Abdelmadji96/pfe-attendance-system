@@ -366,6 +366,22 @@ export const attendanceRepository = {
     return prisma.attendanceLog.findUnique({ where: { id }, include: attendanceIncludes });
   },
 
+  findPresentForSessionToday(userId: string, moduleSessionId: string) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    return prisma.attendanceLog.findFirst({
+      where: {
+        userId,
+        moduleSessionId,
+        status: "PRESENT",
+        checkInAt: { gte: todayStart, lt: todayEnd },
+      },
+    });
+  },
+
   checkIn(data: {
     userId: string;
     rfidUid: string;

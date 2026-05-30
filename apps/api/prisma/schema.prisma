@@ -19,6 +19,7 @@ enum VerificationResult {
   UNKNOWN_CARD
   NO_FACE
   NO_SESSION
+  ALREADY_CHECKED_IN
   ERROR
 }
 

@@ -14,7 +14,10 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   ENROLLMENT_DEVICE_SECRET:
     process.env.ENROLLMENT_DEVICE_SECRET || "change-me-in-production",
-  SIMILARITY_THRESHOLD: parseFloat(process.env.SIMILARITY_THRESHOLD || "0.85"),
-  EMBEDDING_DIMENSION: parseInt(process.env.EMBEDDING_DIMENSION || "128", 10),
+  VERIFICATION_DEVICE_SECRET:
+    process.env.VERIFICATION_DEVICE_SECRET || "change-me-in-production",
+  FACE_EMBED_SERVICE_URL: process.env.FACE_EMBED_SERVICE_URL || "",
+  SIMILARITY_THRESHOLD: parseFloat(process.env.SIMILARITY_THRESHOLD || "0.6"),
+  EMBEDDING_DIMENSION: parseInt(process.env.EMBEDDING_DIMENSION || "512", 10),
   NODE_ENV: process.env.NODE_ENV || "development",
 } as const;

@@ -1,7 +1,7 @@
 import { Permission, RoleName } from "./enums";
 
-export const SIMILARITY_THRESHOLD = 0.85;
-export const EMBEDDING_DIMENSION = 128;
+export const SIMILARITY_THRESHOLD = 0.6;
+export const EMBEDDING_DIMENSION = 512;
 export const MIN_FACE_IMAGES = 10;
 export const MAX_FACE_IMAGES = 20;
 export const MAX_FILE_SIZE_MB = 5;

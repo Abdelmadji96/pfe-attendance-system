@@ -10,6 +10,7 @@ export enum VerificationResult {
   UNKNOWN_CARD = "UNKNOWN_CARD",
   NO_FACE = "NO_FACE",
   NO_SESSION = "NO_SESSION",
+  ALREADY_CHECKED_IN = "ALREADY_CHECKED_IN",
   ERROR = "ERROR",
 }
 

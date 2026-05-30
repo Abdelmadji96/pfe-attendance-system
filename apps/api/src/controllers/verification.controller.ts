@@ -25,4 +25,16 @@ export const verificationController = {
       next(error);
     }
   },
+
+  async gateVerify(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await verificationService.gateVerify(
+        req.body.rfidUid,
+        req.body.liveEmbedding
+      );
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  },
 };

@@ -3,9 +3,17 @@ import { verificationController } from "../controllers/verification.controller";
 import { validate } from "../middlewares/validate";
 import { authenticate } from "../middlewares/authenticate";
 import { authorize } from "../middlewares/authorize";
-import { verifySchema, mockEntrySchema, Permission } from "@pfe/shared";
+import { verificationDeviceAuth } from "../middlewares/verification-device-auth";
+import { verifySchema, mockEntrySchema, gateVerifySchema, Permission } from "@pfe/shared";
 
 export const verificationRouter = Router();
+
+verificationRouter.post(
+  "/gate-verify",
+  verificationDeviceAuth,
+  validate(gateVerifySchema),
+  verificationController.gateVerify
+);
 
 verificationRouter.use(authenticate);
 
