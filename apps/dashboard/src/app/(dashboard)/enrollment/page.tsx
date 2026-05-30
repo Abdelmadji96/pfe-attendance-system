@@ -24,6 +24,15 @@ function dataURLtoFile(dataUrl: string, filename: string): File {
   return new File([bytes], filename, { type: mime });
 }
 
+function RequiredLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Label>
+      {children}
+      <span className="text-destructive ms-0.5" aria-hidden="true">*</span>
+    </Label>
+  );
+}
+
 export default function EnrollmentPage() {
   const qc = useQueryClient();
   const scope = useUserScope();
@@ -103,9 +112,9 @@ export default function EnrollmentPage() {
     mutationFn: async () => {
       const userRes = await api.post("/api/enrollment/complete", {
         rfidUid,
-        userInfo: { firstName, lastName, email, phone: phone || undefined },
+        userInfo: { firstName, lastName, email: email.trim() || undefined, phone: phone.trim() || undefined },
         academicInfo: {
-          studentCode: studentId,
+          studentCode: studentId.trim() || undefined,
           classGroupId,
           department: selectedDepartment?.name,
           level: selectedClassGroup?.level,
@@ -114,13 +123,11 @@ export default function EnrollmentPage() {
       });
       const userId = userRes.data.data.id;
 
-      if (images.length > 0) {
-        const formData = new FormData();
-        images.forEach((img) => formData.append("images", img));
-        await api.post(`/api/face/enroll/${userId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-      }
+      const formData = new FormData();
+      images.forEach((img) => formData.append("images", img));
+      await api.post(`/api/face/enroll/${userId}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       await api.post("/api/enrollment/rfid-clear");
       return userRes.data;
@@ -166,10 +173,10 @@ export default function EnrollmentPage() {
   const canProceed = () => {
     switch (step) {
       case 0: return rfidUid.length > 0;
-      case 1: return firstName && lastName && email && studentId;
-      case 2: return classGroupId;
-      case 3: return images.length >= 10;
-      case 4: return true;
+      case 1: return firstName && lastName;
+      case 2: return !!(effectiveUniversityId && effectiveFacultyId && effectiveDepartmentId && specialityId && classGroupId);
+      case 3: return images.length >= 1;
+      case 4: return images.length >= 1;
       default: return false;
     }
   };
@@ -208,7 +215,7 @@ export default function EnrollmentPage() {
                   </p>
                 </div>
               </div>
-              <Label>{t("rfid-card-uid")}</Label>
+              <RequiredLabel>{t("rfid-card-uid")}</RequiredLabel>
               <Input
                 placeholder={t("scan-enter-rfid")}
                 value={rfidUid}
@@ -216,6 +223,7 @@ export default function EnrollmentPage() {
                   manualEditRef.current = true;
                   setRfidUid(e.target.value);
                 }}
+                required
                 autoFocus
               />
               {detectedRfidUid && (
@@ -230,8 +238,8 @@ export default function EnrollmentPage() {
 
           {step === 1 && (
             <div className="grid grid-cols-2 gap-4 max-w-2xl">
-              <div className="space-y-2"><Label>{t("first-name")}</Label><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} /></div>
-              <div className="space-y-2"><Label>{t("last-name")}</Label><Input value={lastName} onChange={(e) => setLastName(e.target.value)} /></div>
+              <div className="space-y-2"><RequiredLabel>{t("first-name")}</RequiredLabel><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required /></div>
+              <div className="space-y-2"><RequiredLabel>{t("last-name")}</RequiredLabel><Input value={lastName} onChange={(e) => setLastName(e.target.value)} required /></div>
               <div className="space-y-2"><Label>{t("email")}</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
               <div className="space-y-2"><Label>{t("phone")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
               <div className="space-y-2 col-span-2"><Label>{t("student-id")}</Label><Input value={studentId} onChange={(e) => setStudentId(e.target.value)} /></div>
@@ -243,36 +251,36 @@ export default function EnrollmentPage() {
               <p className="text-sm text-muted-foreground">{t("select-academic-structure")}</p>
               <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1">
-                  <Label>{t("university")}</Label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={effectiveUniversityId} onChange={(e) => { setUniversityId(e.target.value); setFacultyId(""); setDepartmentId(""); setSpecialityId(""); setClassGroupId(""); }} disabled={scope.isScoped}>
+                  <RequiredLabel>{t("university")}</RequiredLabel>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={effectiveUniversityId} onChange={(e) => { setUniversityId(e.target.value); setFacultyId(""); setDepartmentId(""); setSpecialityId(""); setClassGroupId(""); }} disabled={scope.isScoped} required>
                     <option value="">{t("select-university")}</option>
                     {universities?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>{t("faculty")}</Label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={effectiveFacultyId} onChange={(e) => { setFacultyId(e.target.value); setDepartmentId(""); setSpecialityId(""); setClassGroupId(""); }} disabled={scope.isHrAdmin || !effectiveUniversityId}>
+                  <RequiredLabel>{t("faculty")}</RequiredLabel>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={effectiveFacultyId} onChange={(e) => { setFacultyId(e.target.value); setDepartmentId(""); setSpecialityId(""); setClassGroupId(""); }} disabled={scope.isHrAdmin || !effectiveUniversityId} required>
                     <option value="">{t("select-faculty")}</option>
                     {faculties?.map((f: any) => <option key={f.id} value={f.id}>{f.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>{t("department")}</Label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={effectiveDepartmentId} onChange={(e) => { setDepartmentId(e.target.value); setSpecialityId(""); setClassGroupId(""); }} disabled={scope.isHrAdmin || !effectiveFacultyId}>
+                  <RequiredLabel>{t("department")}</RequiredLabel>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={effectiveDepartmentId} onChange={(e) => { setDepartmentId(e.target.value); setSpecialityId(""); setClassGroupId(""); }} disabled={scope.isHrAdmin || !effectiveFacultyId} required>
                     <option value="">{t("select-department")}</option>
                     {departments?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>{t("speciality-major")}</Label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={specialityId} onChange={(e) => { setSpecialityId(e.target.value); setClassGroupId(""); }} disabled={!effectiveDepartmentId}>
+                  <RequiredLabel>{t("speciality-major")}</RequiredLabel>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={specialityId} onChange={(e) => { setSpecialityId(e.target.value); setClassGroupId(""); }} disabled={!effectiveDepartmentId} required>
                     <option value="">{t("select-speciality")}</option>
                     {specialities?.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>{t("class-group")}</Label>
-                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={classGroupId} onChange={(e) => setClassGroupId(e.target.value)} disabled={!specialityId}>
+                  <RequiredLabel>{t("class-group")}</RequiredLabel>
+                  <select className="w-full border rounded-md px-3 py-2 text-sm bg-background" value={classGroupId} onChange={(e) => setClassGroupId(e.target.value)} disabled={!specialityId} required>
                     <option value="">{t("select-class-group")}</option>
                     {classGroups?.map((cg: any) => <option key={cg.id} value={cg.id}>{cg.name} ({cg.level})</option>)}
                   </select>
@@ -283,6 +291,10 @@ export default function EnrollmentPage() {
 
           {step === 3 && (
             <div className="space-y-4">
+              <div className="space-y-1">
+                <RequiredLabel>{t("face-images")}</RequiredLabel>
+                <p className="text-sm text-muted-foreground">{t("face-photos-hint")}</p>
+              </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <input ref={fileRef} type="file" accept="image/*" multiple onChange={(e) => e.target.files && handleFiles(e.target.files)} className="hidden" />
                 <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={images.length >= 20}>
@@ -294,7 +306,9 @@ export default function EnrollmentPage() {
                 >
                   <Camera className="me-2 h-4 w-4" />{cameraActive ? t("close-camera") : t("capture-camera")}
                 </Button>
-                <Badge variant={images.length >= 10 ? "default" : "destructive"}>{images.length}/10-20 {t("images-count")}</Badge>
+                <Badge variant={images.length >= 1 ? "default" : "destructive"}>
+                  {t("photos-count").replace("{count}", String(images.length))}
+                </Badge>
               </div>
 
               {cameraActive && (
@@ -324,7 +338,7 @@ export default function EnrollmentPage() {
                   </div>
                 ))}
               </div>
-              {images.length < 10 && <p className="text-sm text-destructive">{t("at-least-10-images")}</p>}
+              {images.length < 1 && <p className="text-sm text-destructive">{t("at-least-1-photo")}</p>}
             </div>
           )}
 
@@ -333,9 +347,9 @@ export default function EnrollmentPage() {
               <h3 className="font-semibold text-lg">{t("review")}</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div><span className="font-medium">{t("rfid-uid")}:</span> {rfidUid}</div>
-                <div><span className="font-medium">{t("student-id")}:</span> {studentId}</div>
+                <div><span className="font-medium">{t("student-id")}:</span> {studentId || t("n-a")}</div>
                 <div><span className="font-medium">{t("name")}:</span> {firstName} {lastName}</div>
-                <div><span className="font-medium">{t("email")}:</span> {email}</div>
+                <div><span className="font-medium">{t("email")}:</span> {email || t("n-a")}</div>
                 <div><span className="font-medium">{t("phone")}:</span> {phone || t("n-a")}</div>
                 <div><span className="font-medium">{t("class")}:</span> {selectedClassGroup?.name} ({selectedClassGroup?.level})</div>
                 <div><span className="font-medium">{t("face-images")}:</span> {images.length}</div>
@@ -350,7 +364,7 @@ export default function EnrollmentPage() {
             {step < 4 ? (
               <Button onClick={() => setStep(step + 1)} disabled={!canProceed()}>{t("next")} <ChevronRight className="ms-1 h-4 w-4" /></Button>
             ) : (
-              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || images.length < 1}>
                 {submitMutation.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}
                 {t("enroll-user")}
               </Button>

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import api from "@/lib/api";
+import api, { API_ORIGIN } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -15,10 +15,14 @@ export default function UserDetailPage() {
     queryFn: () => api.get(`/api/users/${id}`).then((r) => r.data.data),
   });
 
-  const { data: faceTemplates } = useQuery({
+  const { data: faceTemplates, isLoading: faceTemplatesLoading } = useQuery({
     queryKey: ["face-templates", id],
-    queryFn: () => api.get(`/api/face/${id}`).then((r) => r.data.data),
+    queryFn: () => api.get(`/api/face/templates/${id}`).then((r) => r.data.data),
+    enabled: !!id,
   });
+
+  const faceImageUrl = (imagePath: string) =>
+    `${API_ORIGIN}/${imagePath.replace(/^\//, "")}`;
 
   if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
   if (!user) return <div className="p-8 text-center text-muted-foreground">User not found</div>;
@@ -27,7 +31,7 @@ export default function UserDetailPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">{user.firstName} {user.lastName}</h1>
-        <p className="text-muted-foreground">{user.email}</p>
+        <p className="text-muted-foreground">{user.email || "No email"}</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -99,13 +103,22 @@ export default function UserDetailPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><ScanFace className="h-5 w-5" />Face Templates</CardTitle></CardHeader>
           <CardContent>
-            {faceTemplates?.length > 0 ? (
-              <div className="space-y-2">
+            {faceTemplatesLoading ? (
+              <p className="text-sm text-muted-foreground">Loading face templates...</p>
+            ) : faceTemplates?.length > 0 ? (
+              <div className="space-y-3">
                 <p className="text-sm">{faceTemplates.length} face templates enrolled</p>
-                <div className="grid grid-cols-5 gap-1">
-                  {faceTemplates.slice(0, 10).map((t: any) => (
-                    <div key={t.id} className="aspect-square bg-muted rounded flex items-center justify-center text-xs text-muted-foreground">
-                      {(t.qualityScore * 100).toFixed(0)}%
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                  {faceTemplates.map((t: any) => (
+                    <div key={t.id} className="relative aspect-square rounded-md overflow-hidden border bg-muted">
+                      <img
+                        src={faceImageUrl(t.imagePath)}
+                        alt="Face template"
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-1 end-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                        {(t.qualityScore * 100).toFixed(0)}%
+                      </span>
                     </div>
                   ))}
                 </div>
