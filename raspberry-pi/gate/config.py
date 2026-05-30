@@ -132,6 +132,30 @@ class FeedbackConfig:
 
 
 @dataclass(slots=True)
+class LcdConfig:
+    enabled: bool = field(default_factory=lambda: _env_bool("LCD_ENABLED", True))
+    i2c_bus: int = field(default_factory=lambda: _env_int("LCD_I2C_BUS", 1))
+    i2c_address: int = field(default_factory=lambda: _env_int("LCD_I2C_ADDRESS", 0x27))
+    cols: int = field(default_factory=lambda: _env_int("LCD_COLS", 16))
+    rows: int = field(default_factory=lambda: _env_int("LCD_ROWS", 2))
+    idle_line1: str = field(
+        default_factory=lambda: os.environ.get("LCD_IDLE_LINE1", "Scan RFID card")
+    )
+    idle_line2: str = field(
+        default_factory=lambda: os.environ.get("LCD_IDLE_LINE2", "Ready")
+    )
+    success_line1: str = field(
+        default_factory=lambda: os.environ.get("LCD_SUCCESS_LINE1", "Welcome!")
+    )
+    message_hold_ms: int = field(default_factory=lambda: _env_int("LCD_MESSAGE_HOLD_MS", 3000))
+    i2c_mapping: str = field(
+        default_factory=lambda: os.environ.get("LCD_I2C_MAPPING", "standard")
+    )
+    init_delay_ms: int = field(default_factory=lambda: _env_int("LCD_INIT_DELAY_MS", 50))
+    pulse_us: int = field(default_factory=lambda: _env_int("LCD_PULSE_US", 1000))
+
+
+@dataclass(slots=True)
 class GateSystemConfig:
     face: FaceVerifierConfig = field(default_factory=FaceVerifierConfig)
     anti_spoof: AntiSpoofConfig = field(default_factory=AntiSpoofConfig)
@@ -139,3 +163,4 @@ class GateSystemConfig:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     api: ApiConfig = field(default_factory=ApiConfig)
     feedback: FeedbackConfig = field(default_factory=FeedbackConfig)
+    lcd: LcdConfig = field(default_factory=LcdConfig)

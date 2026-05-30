@@ -113,6 +113,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run buzzer diagnostic (tries active/PWM modes)",
     )
+    parser.add_argument(
+        "--test-lcd",
+        action="store_true",
+        help="Cycle LCD test messages then exit",
+    )
+    parser.add_argument(
+        "--no-lcd",
+        action="store_true",
+        help="Disable I2C LCD display",
+    )
     return parser.parse_args()
 
 
@@ -135,6 +145,36 @@ def main() -> int:
         config.anti_spoof.enabled = False
     if args.no_feedback:
         config.feedback.enabled = False
+    if args.no_lcd:
+        config.lcd.enabled = False
+
+    if args.test_lcd:
+        import time
+
+        from gate.hardware.lcd_display import LcdDisplay
+
+        lcd = LcdDisplay(config.lcd)
+        lcd.setup()
+        try:
+            samples = [
+                (config.lcd.idle_line1, config.lcd.idle_line2),
+                (config.lcd.success_line1, "John Doe"),
+                ("Access Denied", "Face not matched"),
+                ("Access Denied", "ID not matched"),
+                ("Access Denied", "No module now"),
+                ("Access Denied", "Already checked in"),
+            ]
+            print(
+                f"LCD mapping: {config.lcd.i2c_mapping} "
+                "(if text is garbled, set LCD_I2C_MAPPING=type2 in .env)"
+            )
+            for line1, line2 in samples:
+                print(f"LCD: {line1!r} / {line2!r}")
+                lcd.show_message(line1, line2)
+                time.sleep(2)
+        finally:
+            lcd.cleanup()
+        return 0
 
     if args.test_feedback:
         from gate.hardware.feedback import HardwareFeedback

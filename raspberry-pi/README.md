@@ -411,13 +411,16 @@ python3 gate_attendance.py
 | `python3 gate_attendance.py --no-preview` | Headless (no camera window) |
 | `python3 gate_attendance.py --no-anti-spoof` | Skip liveness models |
 | `python3 gate_attendance.py --test-feedback` | Test buzzer + LEDs |
+| `python3 gate_attendance.py --test-lcd` | Cycle LCD test messages |
 | `python3 gate_attendance.py --no-feedback` | Disable buzzer/LED GPIO |
+| `python3 gate_attendance.py --no-lcd` | Disable I2C LCD |
 
 ## Gate hardware
 
 - **RC522** — same wiring as enrollment (see section A above).
 - **USB camera** — plug in before starting; set `CAMERA_INDEX=0` (or `1` if needed).
 - **Buzzer + LEDs** — see [Buzzer and LED wiring](#buzzer-and-led-wiring) below.
+- **LCD 1602 I2C** — see [LCD 1602 I2C wiring](#lcd-1602-i2c-wiring) below.
 
 ### Buzzer and LED wiring
 
@@ -425,9 +428,9 @@ Use **BCM GPIO** numbers in `.env`. Default pins avoid RC522 (GPIO 8, 9, 10, 11,
 
 | Component | Default GPIO | Pi physical pin | Notes |
 |-----------|--------------|-----------------|-------|
-| Green LED | **17** | pin 11 | Anode → 220Ω resistor → GPIO 17; cathode → GND |
-| Red LED | **27** | pin 13 | Same as green |
-| Active buzzer | **22** | pin 15 | I/O → GPIO 22; VCC → 3.3V; GND → GND |
+| Green LED | **17** | pin 11 | Anode → 220Ω resistor → GPIO 17; cathode → **GND pin 6** |
+| Red LED | **27** | pin 13 | Anode → 220Ω → GPIO 27; cathode → **GND pin 14** |
+| Passive buzzer | **22** | pin 15 | One leg → GPIO 22; other leg → **GND pin 20** |
 
 For **active-low** modules (common relay boards), set `FEEDBACK_ACTIVE_HIGH=false`.
 
@@ -453,6 +456,96 @@ GREEN_LED_GPIO=17
 RED_LED_GPIO=27
 BUZZER_GPIO=22
 ```
+
+### LCD 1602 I2C wiring
+
+Use an **LCD 1602 with I2C backpack** (PCF8574). It shares the Pi’s I2C bus and does **not** conflict with RC522 (SPI) or the LED/buzzer GPIO pins.
+
+| LCD I2C pin | Raspberry Pi | Notes |
+|-------------|--------------|-------|
+| VCC | Pin **2** (5V) | 5V gives better contrast; 3.3V (pin 1) also works on many modules |
+| GND | Pin **25** (GND) | Any free GND works — see pin map below |
+| SDA | Pin **3** (GPIO 2, SDA) | |
+| SCL | Pin **5** (GPIO 3, SCL) | |
+
+**Full gate pin map (your setup — avoid conflicts):**
+
+```
+Pin  1  → RC522 3.3V
+Pin  2  → LCD VCC (5V)
+Pin  3  → LCD SDA (I2C)
+Pin  5  → LCD SCL (I2C)
+Pin  6  → Green LED cathode (GND)
+Pin  9  → RC522 GND
+Pin 11  → Green LED anode (GPIO 17)
+Pin 13  → Red LED anode (GPIO 27)
+Pin 14  → Red LED cathode (GND)
+Pin 15  → Buzzer (GPIO 22)
+Pin 19  → RC522 MOSI (GPIO 10)
+Pin 20  → Buzzer (GND)
+Pin 21  → RC522 MISO (GPIO 9)   ← SPI, not I2C — do not use for LCD
+Pin 22  → RC522 RST (GPIO 25)
+Pin 23  → RC522 SCK (GPIO 11)
+Pin 24  → RC522 SDA/SS (GPIO 8)
+Pin 25  → LCD GND               ← connect LCD ground here
+```
+
+**Tip:** All GND pins are the same electrically. If the header is crowded, use a breadboard GND rail: one Pi GND pin → rail, then LED / RC522 / LCD / buzzer all to that rail.
+
+**Enable I2C once on the Pi:**
+
+```bash
+sudo raspi-config   # Interface Options → I2C → Enable
+sudo apt install -y i2c-tools
+sudo i2cdetect -y 1   # expect 27 or 3f at the address column
+```
+
+Set `LCD_I2C_ADDRESS` in `.env` to the decimal address from `i2cdetect` (e.g. `39` for `0x27`, `63` for `0x3F`).
+
+**LCD messages during gate scans:**
+
+| Situation | Line 1 | Line 2 |
+|-----------|--------|--------|
+| Idle (waiting) | Scan RFID card | Ready |
+| Success | Welcome! | Student name |
+| Face mismatch | Access Denied | Face not matched |
+| Unknown card | Access Denied | ID not matched |
+| No module now | Access Denied | No module now |
+| Already checked in | Access Denied | Already checked in |
+| No face | Access Denied | No face detected |
+
+Test the display without RFID:
+
+```bash
+source gate-env/bin/activate
+pip install smbus2
+python gate_attendance.py --test-lcd
+```
+
+Example `.env`:
+
+```env
+LCD_ENABLED=true
+LCD_I2C_BUS=1
+LCD_I2C_ADDRESS=39
+LCD_MESSAGE_HOLD_MS=3000
+LCD_I2C_MAPPING=standard
+```
+
+**Garbled / random characters on screen:**
+
+1. Copy the latest `gate/hardware/lcd_display.py` to the Pi (driver fix + timing).
+2. If text is still garbled, change mapping in `.env`:
+   ```env
+   LCD_I2C_MAPPING=type2
+   ```
+3. Re-run `python gate_attendance.py --test-lcd` after each change.
+
+| Symptom | Fix |
+|---------|-----|
+| Solid blue blocks | Turn contrast pot counter-clockwise |
+| Random symbols / gibberish | `LCD_I2C_MAPPING=type2` |
+| Blank with backlight on | Turn contrast pot clockwise |
 
 ## Important notes
 

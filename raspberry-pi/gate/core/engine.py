@@ -14,6 +14,7 @@ from gate.core.face_verifier import FaceVerifier
 from gate.hardware.camera import Camera
 from gate.hardware.feedback import HardwareFeedback
 from gate.hardware.input_provider import build_input_provider
+from gate.hardware.lcd_display import LcdDisplay
 from gate.utils import Timer, bgr_to_rgb, logger
 
 
@@ -28,6 +29,8 @@ class GateAttendanceEngine:
         self.anti_spoof = AntiSpoof(config=self.config.anti_spoof)
         self.feedback = HardwareFeedback(self.config.feedback)
         self.feedback.setup()
+        self.lcd = LcdDisplay(self.config.lcd)
+        self.lcd.setup()
         self.input_provider = build_input_provider(self.config.runtime)
         # RC522 init may touch GPIO — re-configure LED/buzzer pins after RFID
         self.feedback.setup()
@@ -38,6 +41,7 @@ class GateAttendanceEngine:
         logger.info(f"Anti-spoof enabled   : {self.config.anti_spoof.enabled}")
         logger.info(f"Camera preview       : {self.config.camera.display_preview}")
         logger.info(f"Hardware feedback    : {self.config.feedback.enabled}")
+        logger.info(f"LCD display          : {self.config.lcd.enabled}")
         if self.config.feedback.enabled and not self.feedback._ready:
             logger.warning(
                 "Hardware feedback failed at startup — will retry on each scan"
@@ -60,9 +64,35 @@ class GateAttendanceEngine:
         if self.config.camera.display_preview:
             self.camera.start_preview()
 
+    @staticmethod
+    def _student_name(data: dict[str, Any]) -> str:
+        user = data.get("user") or {}
+        first = str(user.get("firstName") or "").strip()
+        last = str(user.get("lastName") or "").strip()
+        return f"{first} {last}".strip()
+
+    def _show_result_then_idle(
+        self,
+        *,
+        success: bool,
+        reason: str | None = None,
+        data: dict[str, Any] | None = None,
+    ) -> None:
+        if success and data is not None:
+            session = data.get("sessionInfo") or {}
+            module_name = str(session.get("moduleName") or "").strip()
+            self.lcd.show_success(self._student_name(data), module_name)
+        else:
+            self.lcd.show_denied(reason)
+        hold_sec = self.config.lcd.message_hold_ms / 1000.0
+        if hold_sec > 0:
+            time.sleep(hold_sec)
+        self.lcd.show_idle()
+
     def verify_attendance(self, rfid_uid: str) -> dict[str, Any]:
         logger.section(f"VERIFYING UID: {rfid_uid}")
         start_total = time.time()
+        self.lcd.show_verifying()
 
         with Timer() as anti_spoof_timer:
             anti_spoof_result = self.anti_spoof.check(self.camera)
@@ -71,6 +101,7 @@ class GateAttendanceEngine:
             reason = anti_spoof_result.get("error", "Anti-spoofing failed")
             logger.fail(f"Access denied — {reason}")
             self.feedback.apply_denied(reason)
+            self._show_result_then_idle(success=False, reason=reason)
             return {
                 "status": "DENIED",
                 "reason": reason,
@@ -92,6 +123,7 @@ class GateAttendanceEngine:
         if face_img is None:
             logger.fail("Access denied — no face captured")
             self.feedback.apply_denied("no_face_captured")
+            self._show_result_then_idle(success=False, reason="no_face_captured")
             return {
                 "status": "DENIED",
                 "reason": "No face captured",
@@ -109,6 +141,7 @@ class GateAttendanceEngine:
         except RuntimeError as exc:
             logger.fail(str(exc))
             self.feedback.apply_denied("api_error")
+            self._show_result_then_idle(success=False, reason="api_error")
             return {"status": "ERROR", "reason": str(exc), "uid": rfid_uid}
 
         data = response.get("data", response)
@@ -119,8 +152,10 @@ class GateAttendanceEngine:
 
         if attendance_marked:
             self.feedback.apply_success()
+            self._show_result_then_idle(success=True, data=data)
         else:
             self.feedback.apply_denied(result)
+            self._show_result_then_idle(success=False, reason=result)
 
         total_sec = round(time.time() - start_total, 4)
         logger.info(f"API result         : {result}")
@@ -162,7 +197,6 @@ class GateAttendanceEngine:
                     continue
                 if event.kind == "uid" and event.value:
                     self.verify_attendance(event.value)
-                    time.sleep(1)
         except KeyboardInterrupt:
             logger.info("Stopped by user (Ctrl+C)")
         finally:
@@ -172,4 +206,5 @@ class GateAttendanceEngine:
         self.camera.stop_preview()
         self.camera.release()
         self.feedback.cleanup()
+        self.lcd.cleanup()
         self.input_provider.cleanup()

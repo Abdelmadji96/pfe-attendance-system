@@ -31,3 +31,6 @@ packaging==26.2
 typing_extensions==4.5.0
 
 # GPIO on Pi 5: sudo apt install python3-rpi-lgpio && venv --system-site-packages
+
+# I2C LCD 1602 (PCF8574 backpack)
+smbus2==0.5.0
