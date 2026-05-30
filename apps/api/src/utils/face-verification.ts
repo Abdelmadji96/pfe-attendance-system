@@ -1,11 +1,9 @@
+import fs from "fs";
+import path from "path";
 import { env } from "../config/env";
 
 /**
- * Face Verification Service
- *
- * INTEGRATION POINT: Replace this mock implementation with a real
- * deep-learning model (e.g., a Python microservice using FaceNet/ArcFace
- * accessible via gRPC or HTTP). The interface remains the same.
+ * Face verification — embeddings from Pi FaceNet service when configured.
  */
 
 export interface IFaceVerificationService {
@@ -38,11 +36,56 @@ function generateMockEmbedding(dim: number = env.EMBEDDING_DIMENSION): number[] 
   return embedding.map((v) => v / norm);
 }
 
+async function embedViaPiService(imagePath: string): Promise<number[]> {
+  const url = env.FACE_EMBED_SERVICE_URL;
+  if (!url) {
+    throw new Error("FACE_EMBED_SERVICE_URL is not configured");
+  }
+
+  const absolutePath = path.isAbsolute(imagePath)
+    ? imagePath
+    : path.resolve(process.cwd(), imagePath);
+
+  const buffer = fs.readFileSync(absolutePath);
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/octet-stream" },
+    body: buffer,
+  });
+
+  const body = (await response.json()) as {
+    success?: boolean;
+    embedding?: number[];
+    message?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(body.message || `Embed service HTTP ${response.status}`);
+  }
+
+  if (!body.embedding?.length) {
+    throw new Error(body.message || "Embed service returned no embedding");
+  }
+
+  if (body.embedding.length !== env.EMBEDDING_DIMENSION) {
+    throw new Error(
+      `Embed dimension mismatch: expected ${env.EMBEDDING_DIMENSION}, got ${body.embedding.length}`
+    );
+  }
+
+  return body.embedding;
+}
+
 export const faceVerificationService: IFaceVerificationService = {
-  async generateEmbedding(_imagePath: string): Promise<number[]> {
-    // INTEGRATION POINT: Call real model here
-    // e.g., const response = await axios.post('http://face-model:8000/embed', { image_path: imagePath })
-    // return response.data.embedding;
+  async generateEmbedding(imagePath: string): Promise<number[]> {
+    if (env.FACE_EMBED_SERVICE_URL) {
+      return embedViaPiService(imagePath);
+    }
+
+    console.warn(
+      "[face-verification] FACE_EMBED_SERVICE_URL not set — using mock embedding. " +
+        "Gate verification will fail until Pi embed server is configured."
+    );
     return generateMockEmbedding();
   },
 
