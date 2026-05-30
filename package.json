@@ -12,7 +12,11 @@
     "db:seed": "pnpm --filter api exec prisma db seed",
     "db:studio": "pnpm --filter api exec prisma studio",
     "pi:rfid:test": "cd raspberry-pi && python3 enrollment_rfid_sender.py --test-connectivity",
-    "pi:rfid:send-test": "cd raspberry-pi && python3 enrollment_rfid_sender.py --send-test TEST123456"
+    "pi:rfid:send-test": "cd raspberry-pi && python3 enrollment_rfid_sender.py --send-test TEST123456",
+    "pi:admin": "cd raspberry-pi && python3 admin_enrollment.py",
+    "pi:gate:test": "cd raspberry-pi && python3 gate_attendance.py --test-connectivity",
+    "pi:gate": "cd raspberry-pi && python3 gate_attendance.py",
+    "pi:embed:server": "cd raspberry-pi && python3 face_embed_server.py"
   },
   "devDependencies": {
     "turbo": "^2.3.0",

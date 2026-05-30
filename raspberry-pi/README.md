@@ -1,6 +1,37 @@
-# Raspberry Pi RFID Enrollment Sender
+# Raspberry Pi scripts
 
-This folder contains a standalone Python script that reads RFID card UIDs from an **RC522** module on a Raspberry Pi and sends them to the attendance system API. When an admin has the dashboard **Enrollment** page open (`/enrollment`, step 1 — RFID Card UID), the scanned UID appears automatically in the input field within about one second.
+This folder contains two Raspberry Pi services:
+
+| Script | Role |
+|--------|------|
+| `admin_enrollment.py` | **Part 1** — embed server + RFID (one terminal) |
+| `enrollment_rfid_sender.py` | RFID only (legacy / debug) |
+| `face_embed_server.py` | Embed server only (legacy / debug) |
+| `gate_attendance.py` | **Part 2** — classroom gate attendance |
+
+Both use **Python 3.10+** on the Pi. Use **`gate-env`** for Part 1 and Part 2.
+
+## Quick start
+
+**Part 1 — Admin enrollment** (one terminal):
+
+```bash
+cd ~/raspberry-pi && source gate-env/bin/activate
+python admin_enrollment.py
+```
+
+**Part 2 — Gate attendance** (separate terminal):
+
+```bash
+cd ~/raspberry-pi && source gate-env/bin/activate
+python gate_attendance.py
+```
+
+---
+
+# RFID Enrollment Sender
+
+This script reads RFID card UIDs from an **RC522** module and sends them to the enrollment API. When an admin has the dashboard **Enrollment** page open (`/enrollment`, step 1 — RFID Card UID), the scanned UID appears automatically in the input field within about one second.
 
 ## How it works
 
@@ -300,9 +331,12 @@ SPI_DEVICE=0
 
 | Command | Description |
 |---------|-------------|
-| `python enrollment_rfid_sender.py` | Read cards and send UIDs |
-| `python enrollment_rfid_sender.py --test-connectivity` | Test `GET /api/health` |
-| `python enrollment_rfid_sender.py --send-test TEST123456` | Send fake UID |
+| `python admin_enrollment.py` | **Part 1** — embed server + RFID (recommended) |
+| `python admin_enrollment.py --test-connectivity` | Test API health |
+| `python admin_enrollment.py --no-embed` | RFID only (no embed server) |
+| `python gate_attendance.py` | **Part 2** — gate attendance |
+| `python enrollment_rfid_sender.py` | RFID only (legacy) |
+| `python face_embed_server.py` | Embed server only (legacy) |
 
 From the monorepo root (optional):
 
@@ -310,3 +344,118 @@ From the monorepo root (optional):
 pnpm pi:rfid:test
 pnpm pi:rfid:send-test
 ```
+
+---
+
+# Gate Attendance (RFID + Camera + FaceNet)
+
+Classroom gate flow:
+
+1. Student taps RFID card on RC522.
+2. USB camera runs anti-spoof liveness (Silent-Face ONNX).
+3. **FaceNet** (`keras-facenet`) generates a **512-d** embedding.
+4. Pi sends `POST /api/verification/gate-verify` with `rfidUid` + `liveEmbedding`.
+5. API checks card, active module session, compares face templates, records attendance.
+
+## Gate setup (Python 3.10)
+
+```bash
+cd raspberry-pi
+sudo apt install -y python3.10 python3.10-venv python3-rpi-lgpio
+python3.10 -m venv --system-site-packages gate-env
+source gate-env/bin/activate
+pip install --upgrade pip
+pip install -r requirements-gate.txt
+cp .env.example .env
+nano .env
+```
+
+Set in `.env`:
+
+```env
+API_BASE_URL=http://YOUR_MAC_IP:4000/api
+VERIFICATION_DEVICE_SECRET=same-as-api-server
+GATE_DEVICE_ID=pi-gate-01
+```
+
+On the **API server** (Mac), add to `.env`:
+
+```env
+VERIFICATION_DEVICE_SECRET=change-me-in-production
+EMBEDDING_DIMENSION=512
+SIMILARITY_THRESHOLD=0.6
+```
+
+## Anti-spoof models
+
+Copy ONNX models into `raspberry-pi/models/` — see [models/README.md](models/README.md).
+
+For testing without models:
+
+```bash
+python3 gate_attendance.py --no-anti-spoof
+```
+
+## Run gate attendance
+
+```bash
+source gate-env/bin/activate
+python3 gate_attendance.py
+```
+
+| Command | Description |
+|---------|-------------|
+| `python3 gate_attendance.py` | RFID + camera gate loop |
+| `python3 gate_attendance.py --test-connectivity` | Test API health |
+| `python3 gate_attendance.py --keyboard` | Manual UID (no RFID) |
+| `python3 gate_attendance.py --no-preview` | Headless (no camera window) |
+| `python3 gate_attendance.py --no-anti-spoof` | Skip liveness models |
+| `python3 gate_attendance.py --test-feedback` | Test buzzer + LEDs |
+| `python3 gate_attendance.py --no-feedback` | Disable buzzer/LED GPIO |
+
+## Gate hardware
+
+- **RC522** — same wiring as enrollment (see section A above).
+- **USB camera** — plug in before starting; set `CAMERA_INDEX=0` (or `1` if needed).
+- **Buzzer + LEDs** — see [Buzzer and LED wiring](#buzzer-and-led-wiring) below.
+
+### Buzzer and LED wiring
+
+Use **BCM GPIO** numbers in `.env`. Default pins avoid RC522 (GPIO 8, 9, 10, 11, 25):
+
+| Component | Default GPIO | Pi physical pin | Notes |
+|-----------|--------------|-----------------|-------|
+| Green LED | **17** | pin 11 | Anode → 220Ω resistor → GPIO 17; cathode → GND |
+| Red LED | **27** | pin 13 | Same as green |
+| Active buzzer | **22** | pin 15 | I/O → GPIO 22; VCC → 3.3V; GND → GND |
+
+For **active-low** modules (common relay boards), set `FEEDBACK_ACTIVE_HIGH=false`.
+
+**Feedback behaviour** (from API):
+
+| Result | LED | Buzzer |
+|--------|-----|--------|
+| MATCH (success) | Green ~1.5s | Short beep (200ms) |
+| Denied / already checked in | Red ~1.5s | Long beep (800ms) |
+
+Test wiring without RFID:
+
+```bash
+source gate-env/bin/activate
+python gate_attendance.py --test-feedback
+```
+
+Adjust pins in `~/raspberry-pi/.env` if your wiring differs:
+
+```env
+FEEDBACK_ENABLED=true
+GREEN_LED_GPIO=17
+RED_LED_GPIO=27
+BUZZER_GPIO=22
+```
+
+## Important notes
+
+- Face templates in the database must be **512-d FaceNet** embeddings. Re-enroll students if templates were created with the old mock 128-d data.
+- Gate and enrollment can run on the **same Pi** or different Pis — use different `DEVICE_ID` / `GATE_DEVICE_ID` values.
+- `requirements-gate.txt` matches the project ML stack (`tensorflow-aarch64`, `keras-facenet`, `onnxruntime`, etc.) for **ARM Raspberry Pi**.

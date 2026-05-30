@@ -1,7 +1,8 @@
 requests
 python-dotenv
-mfrc522
 spidev
-# GPIO is NOT listed here — Pi model-specific (see README Pi 5 section):
-#   Pi 5: sudo apt install python3-rpi-lgpio && venv --system-site-packages
-#   Pi 4: pip install RPi.GPIO
+# mfrc522 installed with --no-deps (see setup below) — its pip dependency pulls broken RPi.GPIO on Pi 5
+# Pi 5: sudo apt install python3-rpi-lgpio
+#       pip install mfrc522 --no-deps
+#       pip uninstall RPi.GPIO -y
+# Pi 4: pip install RPi.GPIO mfrc522
