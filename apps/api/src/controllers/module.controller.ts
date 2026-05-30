@@ -67,6 +67,13 @@ export const moduleController = {
     } catch (e) { next(e); }
   },
 
+  async updateSession(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await moduleService.updateSession(req.params.sessionId, req.body);
+      res.json({ success: true, data });
+    } catch (e) { next(e); }
+  },
+
   async assignProfessor(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await moduleService.assignProfessor(req.params.id, req.body.userId);

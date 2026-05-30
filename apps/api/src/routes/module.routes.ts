@@ -8,6 +8,7 @@ import {
   createModuleSchema,
   updateModuleSchema,
   createModuleSessionSchema,
+  updateModuleSessionSchema,
   assignProfessorSchema,
 } from "@pfe/shared";
 
@@ -24,6 +25,7 @@ modulesRouter.delete("/:id", authorize(Permission.MANAGE_MODULES), moduleControl
 
 // Sessions
 modulesRouter.post("/:id/sessions", authorize(Permission.MANAGE_MODULES), validate(createModuleSessionSchema), moduleController.createSession);
+modulesRouter.patch("/sessions/:sessionId", authorize(Permission.MANAGE_MODULES), validate(updateModuleSessionSchema), moduleController.updateSession);
 modulesRouter.delete("/sessions/:sessionId", authorize(Permission.MANAGE_MODULES), moduleController.deleteSession);
 
 // Professor assignment

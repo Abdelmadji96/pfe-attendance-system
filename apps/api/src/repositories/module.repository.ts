@@ -67,13 +67,27 @@ export const moduleRepository = {
     return prisma.moduleSession.delete({ where: { id } });
   },
 
+  findSessionById(id: string) {
+    return prisma.moduleSession.findUnique({ where: { id } });
+  },
+
+  updateSession(
+    id: string,
+    data: { dayOfWeek?: number; startTime?: string; endTime?: string }
+  ) {
+    return prisma.moduleSession.update({ where: { id }, data });
+  },
+
   findActiveSession(classGroupId: string, dayOfWeek: number, currentTime: string) {
+    const now = new Date();
     return prisma.moduleSession.findFirst({
       where: {
         module: {
           classGroupId,
-          startDate: { lte: new Date() },
-          endDate: { gte: new Date() },
+          AND: [
+            { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+            { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+          ],
         },
         dayOfWeek,
         startTime: { lte: currentTime },

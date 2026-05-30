@@ -30,6 +30,7 @@ import type {
   createModuleSchema,
   updateModuleSchema,
   createModuleSessionSchema,
+  updateModuleSessionSchema,
   assignProfessorSchema,
   csvImportSchema,
   createStaffSchema,
@@ -60,6 +61,7 @@ export type CreateRoomInput = z.infer<typeof createRoomSchema>;
 export type CreateModuleInput = z.infer<typeof createModuleSchema>;
 export type UpdateModuleInput = z.infer<typeof updateModuleSchema>;
 export type CreateModuleSessionInput = z.infer<typeof createModuleSessionSchema>;
+export type UpdateModuleSessionInput = z.infer<typeof updateModuleSessionSchema>;
 export type AssignProfessorInput = z.infer<typeof assignProfessorSchema>;
 export type CsvImportInput = z.infer<typeof csvImportSchema>;
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;

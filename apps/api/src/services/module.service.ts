@@ -2,7 +2,12 @@ import { moduleRepository } from "../repositories/module.repository";
 import { userRepository } from "../repositories/user.repository";
 import { ApiError } from "../utils/api-error";
 import { prisma } from "../config/prisma";
-import type { CreateModuleInput, UpdateModuleInput, CreateModuleSessionInput } from "@pfe/shared";
+import type {
+  CreateModuleInput,
+  UpdateModuleInput,
+  CreateModuleSessionInput,
+  UpdateModuleSessionInput,
+} from "@pfe/shared";
 
 export const moduleService = {
   async getAll(params?: { classGroupId?: string; universityId?: string; departmentId?: string }) {
@@ -25,13 +30,17 @@ export const moduleService = {
 
     const code = input.code || `${input.name.replace(/\s+/g, "-").toUpperCase().slice(0, 10)}-${Date.now().toString(36)}`;
 
+    const now = new Date();
+    const defaultStart = new Date(now.getFullYear(), 0, 1);
+    const defaultEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+
     return moduleRepository.create({
       name: input.name,
       code,
       classGroup: { connect: { id: input.classGroupId } },
       room: input.roomId ? { connect: { id: input.roomId } } : undefined,
-      startDate: input.startDate ? new Date(input.startDate) : undefined,
-      endDate: input.endDate ? new Date(input.endDate) : undefined,
+      startDate: input.startDate ? new Date(input.startDate) : defaultStart,
+      endDate: input.endDate ? new Date(input.endDate) : defaultEnd,
     });
   },
 
@@ -45,8 +54,12 @@ export const moduleService = {
       ...(input.roomId !== undefined && {
         room: input.roomId ? { connect: { id: input.roomId } } : { disconnect: true },
       }),
-      ...(input.startDate && { startDate: new Date(input.startDate) }),
-      ...(input.endDate && { endDate: new Date(input.endDate) }),
+      ...(input.startDate !== undefined && {
+        startDate: input.startDate ? new Date(input.startDate) : null,
+      }),
+      ...(input.endDate !== undefined && {
+        endDate: input.endDate ? new Date(input.endDate) : null,
+      }),
     });
   },
 
@@ -68,7 +81,26 @@ export const moduleService = {
   },
 
   async deleteSession(sessionId: string) {
+    const session = await moduleRepository.findSessionById(sessionId);
+    if (!session) throw ApiError.notFound("Session not found");
     await moduleRepository.deleteSession(sessionId);
+  },
+
+  async updateSession(sessionId: string, input: UpdateModuleSessionInput) {
+    const session = await moduleRepository.findSessionById(sessionId);
+    if (!session) throw ApiError.notFound("Session not found");
+
+    const startTime = input.startTime ?? session.startTime;
+    const endTime = input.endTime ?? session.endTime;
+    if (startTime >= endTime) {
+      throw ApiError.badRequest("Start time must be before end time");
+    }
+
+    return moduleRepository.updateSession(sessionId, {
+      ...(input.dayOfWeek !== undefined && { dayOfWeek: input.dayOfWeek }),
+      ...(input.startTime !== undefined && { startTime: input.startTime }),
+      ...(input.endTime !== undefined && { endTime: input.endTime }),
+    });
   },
 
   async assignProfessor(moduleId: string, userId: string) {
