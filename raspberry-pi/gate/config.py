@@ -147,6 +147,12 @@ class LcdConfig:
     success_line1: str = field(
         default_factory=lambda: os.environ.get("LCD_SUCCESS_LINE1", "Welcome!")
     )
+    enroll_success_line1: str = field(
+        default_factory=lambda: os.environ.get("LCD_ENROLL_SUCCESS_LINE1", "Card scanned")
+    )
+    enroll_fail_line1: str = field(
+        default_factory=lambda: os.environ.get("LCD_ENROLL_FAIL_LINE1", "Scan failed")
+    )
     message_hold_ms: int = field(default_factory=lambda: _env_int("LCD_MESSAGE_HOLD_MS", 3000))
     i2c_mapping: str = field(
         default_factory=lambda: os.environ.get("LCD_I2C_MAPPING", "standard")

@@ -97,6 +97,16 @@ class LcdDisplay:
         line1, line2 = _message_for_reason(reason or "")
         self.show_message(line1, line2)
 
+    def show_rfid_success(self, uid: str) -> None:
+        """Enrollment desk — show scanned UID on line 2."""
+        line2 = (uid or "").strip()[: self.config.cols]
+        self.show_message(self.config.enroll_success_line1, line2)
+
+    def show_rfid_failed(self, reason: str = "Check API") -> None:
+        """Enrollment desk — API or network failure."""
+        line2 = (reason or "Check API").strip()[: self.config.cols]
+        self.show_message(self.config.enroll_fail_line1, line2)
+
     def show_message(self, line1: str, line2: str = "") -> None:
         if not self._ready or self._bus is None:
             return

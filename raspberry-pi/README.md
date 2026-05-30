@@ -227,6 +227,28 @@ python enrollment_rfid_sender.py
 
 Optional: run at boot with `systemd` (not included here).
 
+### Enrollment LCD + buzzer + LEDs
+
+The admin enrollment reader uses the **same GPIO and I2C wiring** as the gate (see [Buzzer and LED wiring](#buzzer-and-led-wiring) and [LCD 1602 I2C wiring](#lcd-1602-i2c-wiring)).
+
+On each successful RFID scan sent to the dashboard:
+
+| Feedback | Behavior |
+|----------|----------|
+| **Green LED** | On + 1 short beep |
+| **LCD line 1** | `Card scanned` (or `LCD_ENROLL_SUCCESS_LINE1`) |
+| **LCD line 2** | RFID UID (e.g. `803464938133`) |
+
+On API failure: red LED blinks + 3 beeps, LCD shows `Scan failed` / error hint.
+
+Test without RFID:
+
+```bash
+source gate-env/bin/activate
+python admin_enrollment.py --test-lcd
+python admin_enrollment.py --test-feedback
+```
+
 ---
 
 ## I. Troubleshooting
@@ -333,7 +355,11 @@ SPI_DEVICE=0
 |---------|-------------|
 | `python admin_enrollment.py` | **Part 1** — embed server + RFID (recommended) |
 | `python admin_enrollment.py --test-connectivity` | Test API health |
+| `python admin_enrollment.py --test-lcd` | Cycle LCD enrollment messages |
+| `python admin_enrollment.py --test-feedback` | Test buzzer + LEDs |
 | `python admin_enrollment.py --no-embed` | RFID only (no embed server) |
+| `python admin_enrollment.py --no-lcd` | Disable I2C LCD |
+| `python admin_enrollment.py --no-feedback` | Disable buzzer/LED GPIO |
 | `python gate_attendance.py` | **Part 2** — gate attendance |
 | `python enrollment_rfid_sender.py` | RFID only (legacy) |
 | `python face_embed_server.py` | Embed server only (legacy) |

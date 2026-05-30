@@ -101,6 +101,26 @@ def parse_args() -> argparse.Namespace:
         default=int(os.environ.get("FACE_EMBED_PORT", "5055")),
         help="Embed server port (default: 5055)",
     )
+    parser.add_argument(
+        "--test-feedback",
+        action="store_true",
+        help="Test buzzer + LEDs then exit",
+    )
+    parser.add_argument(
+        "--test-lcd",
+        action="store_true",
+        help="Cycle LCD enrollment test messages then exit",
+    )
+    parser.add_argument(
+        "--no-feedback",
+        action="store_true",
+        help="Disable buzzer/LED GPIO",
+    )
+    parser.add_argument(
+        "--no-lcd",
+        action="store_true",
+        help="Disable I2C LCD",
+    )
     return parser.parse_args()
 
 
@@ -114,6 +134,12 @@ def main() -> int:
 
     if args.test_connectivity:
         return rfid.test_connectivity(config)
+
+    if args.test_lcd:
+        return rfid.run_test_lcd()
+
+    if args.test_feedback:
+        return rfid.run_test_feedback()
 
     if args.send_test is not None:
         return rfid.run_send_test(config, args.send_test)
@@ -139,7 +165,11 @@ def main() -> int:
         print()
 
     try:
-        return rfid.run_rfid_loop(config)
+        return rfid.run_rfid_loop(
+            config,
+            feedback_enabled=not args.no_feedback,
+            lcd_enabled=not args.no_lcd,
+        )
     except KeyboardInterrupt:
         print("\nStopping admin enrollment...")
         if embed_server is not None:

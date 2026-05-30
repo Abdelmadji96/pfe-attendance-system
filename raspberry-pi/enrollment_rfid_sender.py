@@ -12,11 +12,14 @@ import argparse
 import os
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 
 
 def _load_env_file() -> None:
@@ -42,6 +45,10 @@ def _load_env_file() -> None:
 _load_env_file()
 
 import requests
+
+from gate.config import FeedbackConfig, LcdConfig
+from gate.hardware.feedback import HardwareFeedback
+from gate.hardware.lcd_display import LcdDisplay
 
 # Debounce state (module-level)
 _last_sent_uid: str | None = None
@@ -159,29 +166,76 @@ def print_request_error(exc: requests.RequestException, url: str) -> None:
         print(f"NETWORK ERROR: {exc}\n  URL: {url}")
 
 
-def print_http_error(response: requests.Response) -> None:
+def print_http_error(response: requests.Response) -> str:
     body = response.text.strip()
     if response.status_code == 401:
         print(
             "BACKEND ERROR: Unauthorized (401).\n"
             "  ENROLLMENT_DEVICE_SECRET on the Pi does not match the API .env value."
         )
-    else:
-        print(f"BACKEND ERROR: HTTP {response.status_code}")
+        return "Bad secret"
+    print(f"BACKEND ERROR: HTTP {response.status_code}")
     if body:
         print(f"  Response: {body}")
+    return f"HTTP {response.status_code}"
 
 
-def post_rfid_scan(config: dict[str, Any], uid: str) -> bool:
+@dataclass(slots=True)
+class EnrollmentHardware:
+    feedback: HardwareFeedback
+    lcd: LcdDisplay
+    lcd_config: LcdConfig
+
+    @classmethod
+    def create(cls, *, feedback_enabled: bool = True, lcd_enabled: bool = True) -> EnrollmentHardware:
+        feedback_cfg = FeedbackConfig()
+        lcd_cfg = LcdConfig()
+        if not feedback_enabled:
+            feedback_cfg.enabled = False
+        if not lcd_enabled:
+            lcd_cfg.enabled = False
+        feedback = HardwareFeedback(feedback_cfg)
+        lcd = LcdDisplay(lcd_cfg)
+        feedback.setup()
+        lcd.setup()
+        return cls(feedback=feedback, lcd=lcd, lcd_config=lcd_cfg)
+
+    def setup_after_rfid(self) -> None:
+        """RC522 init may reconfigure GPIO — restore LED/buzzer pins."""
+        self.feedback.setup()
+
+    def show_scanning(self, uid: str) -> None:
+        self.lcd.show_message("Reading card...", uid[: self.lcd_config.cols])
+
+    def show_result(self, *, success: bool, uid: str, reason: str = "") -> None:
+        if success:
+            self.feedback.apply_success()
+            self.lcd.show_rfid_success(uid)
+        else:
+            self.feedback.apply_denied(reason or "api_error")
+            self.lcd.show_rfid_failed(reason or "Check API")
+
+        hold_sec = self.lcd_config.message_hold_ms / 1000.0
+        if hold_sec > 0:
+            time.sleep(hold_sec)
+        self.lcd.show_idle()
+
+    def cleanup(self) -> None:
+        self.feedback.cleanup()
+        self.lcd.cleanup()
+
+
+def post_rfid_scan(config: dict[str, Any], uid: str) -> tuple[bool, bool, str]:
+    """Returns (success, was_sent, error_reason). was_sent is False when debounced."""
     normalized = normalize_uid(uid)
     if not normalized:
         print("ERROR: Empty RFID UID after normalization.")
-        return False
+        return False, True, "Empty UID"
 
     debounce = config["debounce_seconds"]
     if should_debounce(normalized, debounce):
         print(f"Debounced duplicate scan: {normalized} (within {debounce}s)")
-        return True
+        return True, False, ""
 
     url = f"{config['api_base_url']}/enrollment/rfid-scan"
     payload = {"uid": normalized, "deviceId": config["device_id"]}
@@ -197,7 +251,7 @@ def post_rfid_scan(config: dict[str, Any], uid: str) -> bool:
         )
     except requests.RequestException as exc:
         print_request_error(exc, url)
-        return False
+        return False, True, "Network error"
 
     if response.ok:
         print(f"SUCCESS: {response.status_code} {response.reason}")
@@ -207,10 +261,10 @@ def post_rfid_scan(config: dict[str, Any], uid: str) -> bool:
         except ValueError:
             print(f"  Response body: {response.text}")
         record_sent(normalized)
-        return True
+        return True, True, ""
 
-    print_http_error(response)
-    return False
+    reason = print_http_error(response)
+    return False, True, reason
 
 
 def health_urls(api_base_url: str) -> list[str]:
@@ -263,7 +317,7 @@ def run_send_test(config: dict[str, Any], uid: str) -> int:
     print("Send test scan")
     print(f"  Test UID: {normalize_uid(uid)}")
     print()
-    ok = post_rfid_scan(config, uid)
+    ok, _, _ = post_rfid_scan(config, uid)
     return 0 if ok else 1
 
 
@@ -308,7 +362,12 @@ def create_mfrc522_reader(spi_bus: int, spi_device: int):
     return reader
 
 
-def run_rfid_loop(config: dict[str, Any]) -> int:
+def run_rfid_loop(
+    config: dict[str, Any],
+    *,
+    feedback_enabled: bool = True,
+    lcd_enabled: bool = True,
+) -> int:
     try:
         import RPi.GPIO as GPIO
         from mfrc522 import SimpleMFRC522  # noqa: F401
@@ -323,6 +382,22 @@ def run_rfid_loop(config: dict[str, Any]) -> int:
         return 1
 
     print_startup_config(config)
+
+    hardware: EnrollmentHardware | None = None
+    try:
+        hardware = EnrollmentHardware.create(
+            feedback_enabled=feedback_enabled,
+            lcd_enabled=lcd_enabled,
+        )
+        print(
+            f"  Hardware feedback: {'on' if hardware.feedback.config.enabled else 'off'}"
+        )
+        print(f"  LCD display: {'on' if hardware.lcd.config.enabled else 'off'}")
+        print()
+    except Exception as exc:
+        print(f"WARNING: Hardware feedback/LCD init failed: {exc}")
+        print("  Continuing with RFID only.")
+        print()
 
     try:
         reader = create_mfrc522_reader(config["spi_bus"], config["spi_device"])
@@ -341,6 +416,9 @@ def run_rfid_loop(config: dict[str, Any]) -> int:
         )
         return 1
 
+    if hardware is not None:
+        hardware.setup_after_rfid()
+
     print("Waiting for RFID card... (Ctrl+C to stop)")
     print()
 
@@ -357,9 +435,17 @@ def run_rfid_loop(config: dict[str, Any]) -> int:
             uid = normalize_uid(card_id)
             print(f"Card detected: {uid}")
 
-            if post_rfid_scan(config, uid):
+            if hardware is not None:
+                hardware.show_scanning(uid)
+
+            ok, was_sent, reason = post_rfid_scan(config, uid)
+
+            if was_sent and hardware is not None:
+                hardware.show_result(success=ok, uid=uid, reason=reason)
+
+            if ok:
                 print("Sent successfully.")
-            else:
+            elif was_sent:
                 print("Send failed — see errors above.")
 
             print()
@@ -370,6 +456,8 @@ def run_rfid_loop(config: dict[str, Any]) -> int:
         print("\nStopping (KeyboardInterrupt)...")
         return 0
     finally:
+        if hardware is not None:
+            hardware.cleanup()
         try:
             GPIO.cleanup()
             print("GPIO cleaned up.")
@@ -391,12 +479,69 @@ def parse_args() -> argparse.Namespace:
         metavar="UID",
         help="Send a fake UID to the API (no hardware) and exit.",
     )
+    parser.add_argument(
+        "--test-feedback",
+        action="store_true",
+        help="Test buzzer + LEDs then exit",
+    )
+    parser.add_argument(
+        "--test-lcd",
+        action="store_true",
+        help="Cycle LCD enrollment test messages then exit",
+    )
+    parser.add_argument(
+        "--no-feedback",
+        action="store_true",
+        help="Disable buzzer/LED GPIO",
+    )
+    parser.add_argument(
+        "--no-lcd",
+        action="store_true",
+        help="Disable I2C LCD",
+    )
     return parser.parse_args()
+
+
+def run_test_lcd() -> int:
+    lcd_cfg = LcdConfig()
+    lcd = LcdDisplay(lcd_cfg)
+    lcd.setup()
+    try:
+        samples = [
+            (lcd_cfg.idle_line1, lcd_cfg.idle_line2),
+            ("Reading card...", "803464938133"),
+            (lcd_cfg.enroll_success_line1, "803464938133"),
+            (lcd_cfg.enroll_fail_line1, "Check API"),
+        ]
+        print(f"LCD mapping: {lcd_cfg.i2c_mapping}")
+        for line1, line2 in samples:
+            print(f"LCD: {line1!r} / {line2!r}")
+            lcd.show_message(line1, line2)
+            time.sleep(2)
+    finally:
+        lcd.cleanup()
+    return 0
+
+
+def run_test_feedback() -> int:
+    feedback = HardwareFeedback(FeedbackConfig())
+    feedback.setup()
+    try:
+        feedback.test()
+    finally:
+        feedback.cleanup()
+    return 0
 
 
 def main() -> int:
     args = parse_args()
     config = load_config()
+
+    if args.test_lcd:
+        return run_test_lcd()
+
+    if args.test_feedback:
+        return run_test_feedback()
 
     if args.test_connectivity:
         return test_connectivity(config)
@@ -404,7 +549,11 @@ def main() -> int:
     if args.send_test is not None:
         return run_send_test(config, args.send_test)
 
-    return run_rfid_loop(config)
+    return run_rfid_loop(
+        config,
+        feedback_enabled=not args.no_feedback,
+        lcd_enabled=not args.no_lcd,
+    )
 
 
 if __name__ == "__main__":
