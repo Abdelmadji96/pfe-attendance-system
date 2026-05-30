@@ -150,11 +150,11 @@ export const enrollmentCompleteSchema = z.object({
   userInfo: z.object({
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email address"),
+    email: z.string().email("Invalid email address").optional(),
     phone: z.string().optional(),
   }),
   academicInfo: z.object({
-    studentCode: z.string().min(1, "Student code is required"),
+    studentCode: z.string().min(1, "Student code is required").optional(),
     classGroupId: z.string().min(1, "Class/Group is required"),
     department: z.string().optional(),
     level: z.string().optional(),

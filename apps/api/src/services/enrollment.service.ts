@@ -59,14 +59,21 @@ export const enrollmentService = {
       throw ApiError.conflict("RFID card is already registered");
     }
 
-    const existingEmail = await userRepository.findByEmail(input.userInfo.email);
-    if (existingEmail) {
-      throw ApiError.conflict("Email already registered");
+    const email = input.userInfo.email?.trim() || null;
+    const studentCode = input.academicInfo.studentCode?.trim() || null;
+
+    if (email) {
+      const existingEmail = await userRepository.findByEmail(email);
+      if (existingEmail) {
+        throw ApiError.conflict("Email already registered");
+      }
     }
 
-    const existingStudent = await userRepository.findByStudentId(input.academicInfo.studentCode);
-    if (existingStudent) {
-      throw ApiError.conflict("Student ID already exists");
+    if (studentCode) {
+      const existingStudent = await userRepository.findByStudentId(studentCode);
+      if (existingStudent) {
+        throw ApiError.conflict("Student ID already exists");
+      }
     }
 
     const defaultRole = await prisma.role.findFirst({ where: { name: "PROFESSOR" } });
@@ -79,9 +86,9 @@ export const enrollmentService = {
         data: {
           firstName: input.userInfo.firstName,
           lastName: input.userInfo.lastName,
-          email: input.userInfo.email,
+          email,
           phone: input.userInfo.phone,
-          studentId: input.academicInfo.studentCode,
+          studentId: studentCode,
           classGroup: { connect: { id: input.academicInfo.classGroupId } },
           role: { connect: { id: defaultRole.id } },
           rfidCard: { create: { uid: rfidUid } },
