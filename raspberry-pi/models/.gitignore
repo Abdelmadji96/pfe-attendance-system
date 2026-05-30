@@ -1,0 +1,9 @@
+# ML models for gate attendance (~34 MB). Same files as attendanceSystem + models.rar.
+# Install on Pi: copy raspberry-pi/models/ or run ./install_models.sh ~/Downloads/models.rar
+
+models/silent_face/*.onnx
+models/silent_face/*.onnx.data
+models/facenet.tflite
+models/*.onnx
+models/Silent-Face-Anti-Spoofing-master/
+!raspberry-pi/models/README.md

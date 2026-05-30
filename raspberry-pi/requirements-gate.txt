@@ -1,0 +1,33 @@
+# Gate attendance (Python 3.10 on Raspberry Pi)
+# Install in a dedicated venv — see SETUP.md
+
+python-dotenv==1.0.1
+requests==2.33.1
+urllib3==2.6.3
+
+numpy==1.24.3
+opencv-contrib-python-headless==4.8.1.78
+tensorflow-aarch64==2.13.0
+keras==2.13.1
+keras-facenet==0.3.2
+mtcnn==1.0.0
+onnxruntime==1.23.2
+tflite-runtime==2.14.0
+scikit-learn==1.7.2
+scipy==1.15.3
+
+spidev==3.8
+mfrc522==0.0.7
+lgpio==0.2.2.0
+rpi-lgpio==0.6
+
+protobuf==4.25.9
+flatbuffers==20181003210633
+h5py==3.16.0
+pillow==12.2.0
+coloredlogs==15.0.1
+humanfriendly==10.0
+packaging==26.2
+typing_extensions==4.5.0
+
+# GPIO on Pi 5: sudo apt install python3-rpi-lgpio && venv --system-site-packages
