@@ -1,18 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useUserScope } from "@/hooks/use-scope";
 
 export default function UsersPage() {
   const { t } = useI18n();
+  const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [universityId, setUniversityId] = useState("");
@@ -120,6 +121,21 @@ export default function UsersPage() {
     return data;
   })();
 
+  const deleteStudent = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/users/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+
+  const handleDelete = (user: { id: string; firstName: string; lastName: string; email: string }) => {
+    const message = t("delete-student-confirm")
+      .replace("{name}", `${user.firstName} ${user.lastName}`)
+      .replace("{email}", user.email);
+    if (!window.confirm(message)) return;
+    deleteStudent.mutate(user.id);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -207,7 +223,19 @@ export default function UsersPage() {
                   <Badge variant={user.isActive ? "default" : "secondary"}>{user.isActive ? t("active") : t("inactive")}</Badge>
                 </td>
                 <td className="px-3 py-2">
-                  <Link href={`/users/${user.id}`}><Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button></Link>
+                  <div className="flex items-center gap-1">
+                    <Link href={`/users/${user.id}`}>
+                      <Button variant="ghost" size="icon"><Eye className="h-4 w-4" /></Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={deleteStudent.isPending}
+                      onClick={() => handleDelete(user)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
