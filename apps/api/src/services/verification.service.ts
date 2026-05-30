@@ -8,6 +8,7 @@ import { env } from "../config/env";
 import { mapUserToDto } from "./user.service";
 import { ApiError } from "../utils/api-error";
 import {
+  Prisma,
   VerificationResult,
   AttendanceStatus,
   LedFeedback,
@@ -24,7 +25,7 @@ function buildSessionInfo(session: NonNullable<Awaited<ReturnType<typeof moduleR
   return {
     moduleId: session.module.id,
     moduleName: session.module.name,
-    moduleCode: session.module.code,
+    moduleCode: session.module.code ?? "",
     sessionId: session.id,
     roomName: session.module.room?.name || null,
     startTime: session.startTime,
@@ -257,7 +258,7 @@ async function createLogs(params: {
   moduleId: string | null; sessionId: string | null;
   writeAttendance?: boolean;
 }) {
-  const ops = [
+  const ops: Prisma.PrismaPromise<unknown>[] = [
     prisma.accessLog.create({
       data: {
         userId: params.userId, rfidUid: params.rfidUid,

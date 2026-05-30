@@ -44,7 +44,7 @@ export const authService = {
       throw ApiError.unauthorized("Invalid email or password");
     }
 
-    const token = signToken({ userId: user.id, email: user.email });
+    const token = signToken({ userId: user.id, email: user.email! });
     return { user: toAuthUser(user), token };
   },
 
@@ -69,7 +69,7 @@ export const authService = {
       role: { connect: { id: adminRole.id } },
     });
 
-    const token = signToken({ userId: user.id, email: user.email });
+    const token = signToken({ userId: user.id, email: user.email! });
     return { user: toAuthUser(user), token };
   },
 
