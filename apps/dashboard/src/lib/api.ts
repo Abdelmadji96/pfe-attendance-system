@@ -1,8 +1,12 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+// Routes already include `/api/...`; strip a trailing `/api` from env to avoid `/api/api/...`.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(
+  /\/api\/?$/,
+  ""
+);
 
-export const API_ORIGIN = API_URL.replace(/\/api\/?$/, "");
+export const API_ORIGIN = API_URL;
 
 const api = axios.create({
   baseURL: API_URL,
