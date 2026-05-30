@@ -2,11 +2,24 @@
 
 import { useState, useEffect, ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/query-client";
+import { createQueryClient } from "@/lib/query-client";
 import { AuthContext } from "@/hooks/use-auth";
-import { I18nProvider } from "@/lib/i18n";
+import { I18nProvider, useI18n } from "@/lib/i18n";
+import { Toaster } from "@/components/ui/toaster";
 import type { AuthUser } from "@pfe/shared";
 import api from "@/lib/api";
+
+function QueryProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
+  const [queryClient] = useState(() => createQueryClient(t("something-went-wrong")));
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <Toaster />
+    </QueryClientProvider>
+  );
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -56,9 +69,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
-      <QueryClientProvider client={queryClient}>
-        <I18nProvider>{children}</I18nProvider>
-      </QueryClientProvider>
+      <I18nProvider>
+        <QueryProvider>{children}</QueryProvider>
+      </I18nProvider>
     </AuthContext.Provider>
   );
 }

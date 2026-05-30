@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, ChevronRight, Camera, Upload, X, Loader2, ScanLine, Radio } from "lucide-react";
 import { useUserScope } from "@/hooks/use-scope";
+import { toastSuccess } from "@/hooks/use-toast";
 
 function dataURLtoFile(dataUrl: string, filename: string): File {
   const [header, data] = dataUrl.split(",");
@@ -134,7 +135,7 @@ export default function EnrollmentPage() {
       setDetectedRfidUid(null);
       lastPollUidRef.current = null;
       manualEditRef.current = false;
-      alert(t("enrollment-success"));
+      toastSuccess(t("enrollment-success"));
     },
   });
 

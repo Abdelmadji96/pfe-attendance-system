@@ -461,13 +461,6 @@ export default function StaffPage() {
                 )}
               </div>
 
-              {createMutation.isError && (
-                <p className="text-sm text-destructive">
-                  {(createMutation.error as any)?.response?.data?.message ||
-                    t("failed-create-staff")}
-                </p>
-              )}
-
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   {t("cancel")}

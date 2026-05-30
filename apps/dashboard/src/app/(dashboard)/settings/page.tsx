@@ -159,11 +159,6 @@ export default function SettingsPage() {
             {profileSuccess && (
               <span className="text-sm text-green-600 font-medium">{t("profile-updated")}</span>
             )}
-            {profileMutation.isError && (
-              <span className="text-sm text-destructive font-medium">
-                {(profileMutation.error as any)?.response?.data?.message || t("failed-update")}
-              </span>
-            )}
           </div>
         </CardContent>
       </Card>

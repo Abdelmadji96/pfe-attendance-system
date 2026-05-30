@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, X, Check } from "lucide-react";
+import { toastSuccess } from "@/hooks/use-toast";
 
 interface CsvImportDialogProps {
   open: boolean;
@@ -37,7 +38,10 @@ export default function CsvImportDialog({ open, onOpenChange, entityType, requir
     mutationFn: () => api.post("/api/master-data/import-csv", { entityType, rows }),
     onSuccess: (res) => {
       qc.invalidateQueries();
-      alert(`Import complete: ${res.data.data.created} of ${res.data.data.total} created`);
+      toastSuccess(
+        "Import complete",
+        `${res.data.data.created} of ${res.data.data.total} rows created`
+      );
       handleClose();
     },
   });
