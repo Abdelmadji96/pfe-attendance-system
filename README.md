@@ -95,7 +95,7 @@ pnpm dev
 | RFID | `POST /api/rfid/scan`, `POST /api/rfid/assign`, `GET /api/rfid/:uid/user` |
 | Face | `POST /api/face/enroll/:userId`, `GET /api/face/templates/:userId`, `DELETE /api/face/templates/:id` |
 | Verification | `POST /api/verification/verify`, `POST /api/verification/mock-entry` |
-| Attendance | `GET /api/attendance`, `GET /api/attendance/stats`, `GET /api/attendance/charts/*`, `POST /api/attendance/check-in`, `POST /api/attendance/check-out` |
+| Attendance | `GET /api/attendance`, `GET /api/attendance/stats`, `GET /api/attendance/charts/*`, `POST /api/attendance/check-in` |
 | Roles | `GET /api/roles` |
 | Settings | `GET /api/settings`, `PATCH /api/settings` |
 

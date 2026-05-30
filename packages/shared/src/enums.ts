@@ -1,7 +1,6 @@
 export enum AttendanceStatus {
   PRESENT = "PRESENT",
   FAILED = "FAILED",
-  CHECKED_OUT = "CHECKED_OUT",
 }
 
 export enum VerificationResult {

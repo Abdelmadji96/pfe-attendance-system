@@ -231,7 +231,6 @@ export interface AttendanceLogDto {
   user: UserDto | null;
   rfidUid: string;
   checkInAt: string;
-  checkOutAt: string | null;
   status: AttendanceStatus;
   verificationResult: VerificationResult;
   similarityScore: number | null;

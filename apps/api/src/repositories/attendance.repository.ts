@@ -157,7 +157,7 @@ export const attendanceRepository = {
     const todayEnd = new Date(todayStart); todayEnd.setDate(todayEnd.getDate() + 1);
     const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
     const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7);
-    const monthStart = new Date(todayStart); monthStart.setDate(weekStart.getDate() - 30);
+    const monthStart = new Date(todayStart); monthStart.setDate(monthStart.getDate() - 30);
 
     const moduleFilter = professorModuleIds ? { moduleId: { in: professorModuleIds } } : {};
     const uniUserFilter: Prisma.UserWhereInput | undefined = departmentId
@@ -244,8 +244,8 @@ export const attendanceRepository = {
       activeModules,
       recentActivity: recentLogs.map((l) => ({
         id: l.id,
-        studentName: `${l.user.firstName} ${l.user.lastName}`,
-        studentId: l.user.studentId,
+        studentName: l.user ? `${l.user.firstName} ${l.user.lastName}` : "Unknown",
+        studentId: l.user?.studentId ?? null,
         module: l.module?.name || null,
         status: l.status,
         verificationResult: l.verificationResult,
@@ -362,10 +362,6 @@ export const attendanceRepository = {
       .sort((a, b) => b.count - a.count);
   },
 
-  findById(id: string) {
-    return prisma.attendanceLog.findUnique({ where: { id }, include: attendanceIncludes });
-  },
-
   findPresentForSessionToday(userId: string, moduleSessionId: string) {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -400,14 +396,6 @@ export const attendanceRepository = {
         moduleId: data.moduleId,
         moduleSessionId: data.moduleSessionId,
       },
-      include: attendanceIncludes,
-    });
-  },
-
-  checkOut(id: string) {
-    return prisma.attendanceLog.update({
-      where: { id },
-      data: { checkOutAt: new Date(), status: "CHECKED_OUT" },
       include: attendanceIncludes,
     });
   },

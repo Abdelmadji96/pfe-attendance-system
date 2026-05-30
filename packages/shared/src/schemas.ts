@@ -215,10 +215,6 @@ export const checkInSchema = z.object({
   moduleSessionId: z.string().optional(),
 });
 
-export const checkOutSchema = z.object({
-  attendanceLogId: z.string().min(1),
-});
-
 // ── Settings ──
 
 export const updateSettingsSchema = z.object({

@@ -100,11 +100,4 @@ export const attendanceController = {
       res.status(201).json({ success: true, data });
     } catch (e) { next(e); }
   },
-
-  async checkOut(req: Request, res: Response, next: NextFunction) {
-    try {
-      const data = await attendanceService.checkOut(req.body.attendanceLogId);
-      res.json({ success: true, data });
-    } catch (e) { next(e); }
-  },
 };

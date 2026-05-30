@@ -3,7 +3,7 @@ import { attendanceController } from "../controllers/attendance.controller";
 import { validate } from "../middlewares/validate";
 import { authenticate } from "../middlewares/authenticate";
 import { authorize } from "../middlewares/authorize";
-import { checkInSchema, checkOutSchema, Permission } from "@pfe/shared";
+import { checkInSchema, Permission } from "@pfe/shared";
 
 export const attendanceRouter = Router();
 
@@ -19,4 +19,3 @@ attendanceRouter.get("/charts/checkins-per-day", viewCharts, attendanceControlle
 attendanceRouter.get("/charts/peak-hours", viewCharts, attendanceController.getPeakHours);
 attendanceRouter.get("/charts/by-class-department", viewCharts, attendanceController.getByGroupData);
 attendanceRouter.post("/check-in", authorize(Permission.MANAGE_ATTENDANCE), validate(checkInSchema), attendanceController.checkIn);
-attendanceRouter.post("/check-out", authorize(Permission.MANAGE_ATTENDANCE), validate(checkOutSchema), attendanceController.checkOut);

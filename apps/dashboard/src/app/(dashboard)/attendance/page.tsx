@@ -206,9 +206,9 @@ export default function AttendancePage() {
 
   const exportCsv = () => {
     if (!attendance?.data) return;
-    const header = `${t("full-name")},${t("student-id")},${t("level")},${t("class")},${t("major")},${t("check-in")},${t("check-out")}\n`;
+    const header = `${t("full-name")},${t("student-id")},${t("level")},${t("class")},${t("major")},${t("check-in")}\n`;
     const rows = attendance.data.map((log: any) =>
-      `"${log.user?.firstName || ""} ${log.user?.lastName || ""}","${log.user?.studentId || ""}","${log.user?.classGroup?.level || ""}","${log.user?.classGroup?.name || ""}","${log.user?.classGroup?.speciality?.name || ""}","${log.checkInAt}","${log.checkOutAt || ""}"`
+      `"${log.user?.firstName || ""} ${log.user?.lastName || ""}","${log.user?.studentId || ""}","${log.user?.classGroup?.level || ""}","${log.user?.classGroup?.name || ""}","${log.user?.classGroup?.speciality?.name || ""}","${log.checkInAt}"`
     ).join("\n");
     const blob = new Blob([header + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -415,7 +415,6 @@ export default function AttendancePage() {
                   <th className="px-3 py-2 text-start">{t("class")}</th>
                   <th className="px-3 py-2 text-start">{t("major")}</th>
                   <th className="px-3 py-2 text-start">{t("check-in")}</th>
-                  <th className="px-3 py-2 text-start">{t("check-out")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -439,13 +438,10 @@ export default function AttendancePage() {
                     <td className="px-3 py-2 text-xs">
                       {new Date(log.checkInAt).toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-xs">
-                      {log.checkOutAt ? new Date(log.checkOutAt).toLocaleString() : "-"}
-                    </td>
                   </tr>
                 ))}
                 {attendance?.data?.length === 0 && (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{t("no-attendance-records")}</td></tr>
+                  <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">{t("no-attendance-records")}</td></tr>
                 )}
               </tbody>
             </table>

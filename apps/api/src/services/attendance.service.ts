@@ -1,6 +1,5 @@
 import { attendanceRepository } from "../repositories/attendance.repository";
 import { moduleRepository } from "../repositories/module.repository";
-import { ApiError } from "../utils/api-error";
 import { mapUserToDto } from "./user.service";
 import { AttendanceStatus, VerificationResult } from "@prisma/client";
 
@@ -11,7 +10,6 @@ function mapAttendanceToDto(log: any) {
     user: log.user ? mapUserToDto(log.user) : null,
     rfidUid: log.rfidUid,
     checkInAt: log.checkInAt.toISOString(),
-    checkOutAt: log.checkOutAt?.toISOString() || null,
     status: log.status,
     verificationResult: log.verificationResult,
     similarityScore: log.similarityScore,
@@ -125,14 +123,6 @@ export const attendanceService = {
     moduleSessionId?: string;
   }) {
     const log = await attendanceRepository.checkIn(data);
-    return mapAttendanceToDto(log);
-  },
-
-  async checkOut(attendanceLogId: string) {
-    const existing = await attendanceRepository.findById(attendanceLogId);
-    if (!existing) throw ApiError.notFound("Attendance log not found");
-    if (existing.checkOutAt) throw ApiError.badRequest("Already checked out");
-    const log = await attendanceRepository.checkOut(attendanceLogId);
     return mapAttendanceToDto(log);
   },
 };

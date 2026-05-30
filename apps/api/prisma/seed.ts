@@ -330,17 +330,13 @@ async function main() {
         const checkInDate = new Date(date);
         checkInDate.setHours(h, m + Math.floor(Math.random() * 10));
 
-        const status = isMatch ? (Math.random() > 0.3 ? "CHECKED_OUT" : "PRESENT") : "FAILED";
-        const checkOutDate = status === "CHECKED_OUT"
-          ? new Date(checkInDate.getTime() + 60 * 60 * 1000 + Math.random() * 30 * 60 * 1000)
-          : null;
+        const status = isMatch ? "PRESENT" : "FAILED";
 
         await prisma.attendanceLog.create({
           data: {
             userId: student.id,
             rfidUid: student.rfidCard?.uid || "UNKNOWN",
             checkInAt: checkInDate,
-            checkOutAt: checkOutDate,
             status,
             verificationResult: isMatch ? "MATCH" : "MISMATCH",
             similarityScore: Math.round(score * 10000) / 10000,
