@@ -4,6 +4,7 @@ import { prisma } from "../config/prisma";
 import { Prisma } from "@prisma/client";
 import type { CreateUserInput, UpdateUserInput } from "@pfe/shared";
 import { Permission } from "@pfe/shared";
+import { ensureStudentRole } from "../utils/ensure-student-role";
 
 function mapUserToDto(user: any) {
   return {
@@ -156,8 +157,7 @@ export const userService = {
       if (existingStudent) throw ApiError.conflict("Student ID already exists");
     }
 
-    const studentRole = await prisma.role.findFirst({ where: { name: "STUDENT" } });
-    if (!studentRole) throw ApiError.internal("STUDENT role not found — run db:seed");
+    const studentRole = await ensureStudentRole();
 
     const createData: Prisma.UserCreateInput = {
       firstName: input.firstName,

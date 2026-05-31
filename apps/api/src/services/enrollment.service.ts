@@ -5,6 +5,7 @@ import { enrollmentRfidStore } from "../stores/enrollment-rfid.store";
 import { rfidRepository } from "../repositories/rfid.repository";
 import { userRepository } from "../repositories/user.repository";
 import { ApiError } from "../utils/api-error";
+import { ensureStudentRole } from "../utils/ensure-student-role";
 import { mapUserToDto } from "./user.service";
 
 type EnrollmentCompleteInput = z.infer<typeof enrollmentCompleteSchema>;
@@ -76,10 +77,7 @@ export const enrollmentService = {
       }
     }
 
-    const studentRole = await prisma.role.findFirst({ where: { name: "STUDENT" } });
-    if (!studentRole) {
-      throw ApiError.internal("STUDENT role not found — run db:seed or add STUDENT to roles");
-    }
+    const studentRole = await ensureStudentRole();
 
     const user = await prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
