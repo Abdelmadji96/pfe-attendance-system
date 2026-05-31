@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { CheckCircle, ChevronRight, Camera, Upload, X, Loader2, ScanLine, Radio } from "lucide-react";
 import { useUserScope } from "@/hooks/use-scope";
 import { toastSuccess } from "@/hooks/use-toast";
+import { MIN_FACE_IMAGES, MAX_FACE_IMAGES } from "@pfe/shared";
 
 function dataURLtoFile(dataUrl: string, filename: string): File {
   const [header, data] = dataUrl.split(",");
@@ -175,8 +176,8 @@ export default function EnrollmentPage() {
       case 0: return rfidUid.length > 0;
       case 1: return firstName && lastName;
       case 2: return !!(effectiveUniversityId && effectiveFacultyId && effectiveDepartmentId && specialityId && classGroupId);
-      case 3: return images.length >= 1;
-      case 4: return images.length >= 1;
+      case 3: return images.length >= MIN_FACE_IMAGES;
+      case 4: return images.length >= MIN_FACE_IMAGES;
       default: return false;
     }
   };
@@ -293,7 +294,11 @@ export default function EnrollmentPage() {
             <div className="space-y-4">
               <div className="space-y-1">
                 <RequiredLabel>{t("face-images")}</RequiredLabel>
-                <p className="text-sm text-muted-foreground">{t("face-photos-hint")}</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("face-photos-hint")
+                    .replace("{min}", String(MIN_FACE_IMAGES))
+                    .replace("{max}", String(MAX_FACE_IMAGES))}
+                </p>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <input ref={fileRef} type="file" accept="image/*" multiple onChange={(e) => e.target.files && handleFiles(e.target.files)} className="hidden" />
@@ -306,8 +311,11 @@ export default function EnrollmentPage() {
                 >
                   <Camera className="me-2 h-4 w-4" />{cameraActive ? t("close-camera") : t("capture-camera")}
                 </Button>
-                <Badge variant={images.length >= 1 ? "default" : "destructive"}>
-                  {t("photos-count").replace("{count}", String(images.length))}
+                <Badge variant={images.length >= MIN_FACE_IMAGES ? "default" : "destructive"}>
+                  {t("photos-count")
+                    .replace("{count}", String(images.length))
+                    .replace("{min}", String(MIN_FACE_IMAGES))
+                    .replace("{max}", String(MAX_FACE_IMAGES))}
                 </Badge>
               </div>
 
@@ -338,7 +346,11 @@ export default function EnrollmentPage() {
                   </div>
                 ))}
               </div>
-              {images.length < 1 && <p className="text-sm text-destructive">{t("at-least-1-photo")}</p>}
+              {images.length < MIN_FACE_IMAGES && (
+                <p className="text-sm text-destructive">
+                  {t("at-least-min-photos").replace("{min}", String(MIN_FACE_IMAGES))}
+                </p>
+              )}
             </div>
           )}
 
@@ -364,7 +376,7 @@ export default function EnrollmentPage() {
             {step < 4 ? (
               <Button onClick={() => setStep(step + 1)} disabled={!canProceed()}>{t("next")} <ChevronRight className="ms-1 h-4 w-4" /></Button>
             ) : (
-              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || images.length < 1}>
+              <Button onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending || images.length < MIN_FACE_IMAGES}>
                 {submitMutation.isPending ? <Loader2 className="me-2 h-4 w-4 animate-spin" /> : null}
                 {t("enroll-user")}
               </Button>
