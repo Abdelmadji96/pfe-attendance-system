@@ -6,7 +6,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "db:add-student-enum": "prisma db execute --schema=prisma/schema.prisma --file=prisma/sql/add-student-enum.sql",
+    "db:ensure-student-role": "prisma db execute --schema=prisma/schema.prisma --file=prisma/sql/ensure-student-role.sql"
   },
   "dependencies": {
     "@pfe/shared": "workspace:*",
