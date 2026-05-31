@@ -14,6 +14,7 @@ import { masterDataRouter } from "./routes/master-data.routes";
 import { modulesRouter } from "./routes/module.routes";
 import { staffRouter } from "./routes/staff.routes";
 import { enrollmentRouter } from "./routes/enrollment.routes";
+import { env } from "./config/env";
 
 export const app = express();
 
@@ -23,8 +24,34 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (_req, res) => {
+  const payload: Record<string, unknown> = {
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    faceEmbedConfigured: Boolean(env.FACE_EMBED_SERVICE_URL),
+  };
+
+  if (env.FACE_EMBED_SERVICE_URL) {
+    const healthUrl = env.FACE_EMBED_SERVICE_URL.replace(/\/embed\/?$/, "/health");
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      const response = await fetch(healthUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      payload.faceEmbedUrl = env.FACE_EMBED_SERVICE_URL;
+      payload.faceEmbedReachable = response.ok;
+      if (!response.ok) {
+        payload.faceEmbedError = `HTTP ${response.status}`;
+      }
+    } catch (error) {
+      payload.faceEmbedUrl = env.FACE_EMBED_SERVICE_URL;
+      payload.faceEmbedReachable = false;
+      payload.faceEmbedError =
+        error instanceof Error ? error.message : "Embed health check failed";
+    }
+  }
+
+  res.json(payload);
 });
 
 app.use("/api/auth", authRouter);

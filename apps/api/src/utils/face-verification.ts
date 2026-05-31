@@ -46,12 +46,26 @@ async function embedViaPiService(imagePath: string): Promise<number[]> {
     ? imagePath
     : path.resolve(process.cwd(), imagePath);
 
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`Image file not found: ${absolutePath}`);
+  }
+
   const buffer = fs.readFileSync(absolutePath);
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/octet-stream" },
-    body: buffer,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: buffer,
+    });
+  } catch (error) {
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Cannot reach face embedding service (${url}): ${cause}. ` +
+        "The API server must be able to reach FACE_EMBED_SERVICE_URL (not a private Pi IP from a remote VPS). " +
+        "Run face_embed_server.py on the API host or expose the Pi embed port with a public/tunnel URL."
+    );
+  }
 
   const body = (await response.json()) as {
     success?: boolean;

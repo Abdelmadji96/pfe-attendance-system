@@ -58,9 +58,16 @@ export const faceService = {
 
     if (templates.length === 0) {
       const detail = skipped.map((item) => `${item.filename}: ${item.reason}`).join("; ");
+      const embedUnreachable = skipped.every(
+        (item) =>
+          item.reason.includes("Cannot reach face embedding service") ||
+          item.reason === "fetch failed"
+      );
       throw ApiError.badRequest(
-        `No faces detected in uploaded images. ${detail}. ` +
-          "Use clear front-facing photos with one visible face."
+        embedUnreachable
+          ? `Face embedding service is unreachable. ${detail}`
+          : `No faces detected in uploaded images. ${detail}. ` +
+              "Use clear front-facing photos with one visible face."
       );
     }
 
@@ -68,10 +75,10 @@ export const faceService = {
       const detail = skipped.length
         ? ` Skipped: ${skipped.map((item) => item.filename).join(", ")}.`
         : "";
+      const needMore = MIN_FACE_IMAGES - totalAfterSuccess;
       throw ApiError.badRequest(
-        `Only ${templates.length} of ${files.length} images had detectable faces ` +
-          `(${totalAfterSuccess} total, need at least ${MIN_FACE_IMAGES}).${detail} ` +
-          "Upload more clear front-facing photos."
+        `Need at least ${MIN_FACE_IMAGES} face photos for enrollment (you have ${totalAfterSuccess}, add ${needMore} more).` +
+          `${detail} Use clear front-facing photos with one visible face per image.`
       );
     }
 
