@@ -1,0 +1,17 @@
+# Face embed server on Ubuntu VPS (x86_64) — Python 3.10–3.12
+# No Pi GPIO / SPI packages
+
+python-dotenv==1.0.1
+
+numpy>=1.24.0,<2.0.0
+opencv-contrib-python-headless>=4.8.0,<4.12.0
+pillow>=10.0.0
+protobuf>=4.25.0
+typing_extensions>=4.5.0
+scikit-learn>=1.5.0
+scipy>=1.14.0
+
+tensorflow>=2.16.0,<2.19.0
+keras>=3.0.0
+keras-facenet==0.3.2
+mtcnn>=1.0.0

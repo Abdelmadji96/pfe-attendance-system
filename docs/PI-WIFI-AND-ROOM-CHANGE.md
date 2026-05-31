@@ -23,6 +23,23 @@ This guide covers **every way to get back in** and **what to run after SSH works
 
 **Keep `~/raspberry-pi/.env` as-is** when changing rooms (do not point `API_BASE_URL` at your Mac).
 
+### Dashboard face photos (Vercel → VPS)
+
+Enrollment step 5 uploads images to the **VPS API** (`187.77.171.204`). The API then calls `FACE_EMBED_SERVICE_URL` to compute face embeddings.
+
+| `FACE_EMBED_SERVICE_URL` on VPS | Works from dashboard? |
+|--------------------------------|------------------------|
+| `http://192.168.x.x:5055/embed` (Pi LAN IP only) | **No** — VPS cannot reach your Pi’s private IP → `fetch failed` |
+| `http://187.77.171.204:5055/embed` (embed server on VPS) | **Yes** |
+| Public/tunnel URL to Pi `:5055` | **Yes**, if the tunnel is up |
+
+**Fix:** On the VPS, set `FACE_EMBED_SERVICE_URL` to an embed service the VPS can reach, then restart the API:
+
+1. **Recommended (Option A):** Full steps in **[docs/VPS-FACE-EMBED.md](VPS-FACE-EMBED.md)** — clone repo on VPS, `./setup-vps-embed.sh`, systemd, `FACE_EMBED_SERVICE_URL=http://127.0.0.1:5055/embed`.
+2. **Alternative:** Keep embed on the Pi (`./start-enrollment.sh`), expose port `5055` with a tunnel (ngrok, Cloudflare Tunnel, etc.), and set `FACE_EMBED_SERVICE_URL` to that public URL on the VPS.
+
+Pi enrollment mode (`./start-enrollment.sh`) only helps **RFID auto-fill** on step 1; the dashboard still needs a **VPS-reachable** embed URL for step 5.
+
 ---
 
 ## Decision flow

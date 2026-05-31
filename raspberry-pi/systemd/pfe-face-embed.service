@@ -1,0 +1,18 @@
+[Unit]
+Description=PFE Face embedding service (FaceNet, dashboard enrollment)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+WorkingDirectory=@INSTALL_DIR@
+Environment=PATH=@INSTALL_DIR@/embed-env/bin
+Environment=TF_CPP_MIN_LOG_LEVEL=3
+Environment=CUDA_VISIBLE_DEVICES=-1
+ExecStart=@INSTALL_DIR@/embed-env/bin/python face_embed_server.py --host 127.0.0.1 --port 5055
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
