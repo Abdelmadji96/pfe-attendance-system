@@ -82,7 +82,10 @@ class RFIDInputProvider(BaseInputProvider):
             return InputEvent(kind="empty")
 
     def cleanup(self) -> None:
-        # Do not call GPIO.cleanup() — it resets ALL pins and breaks LED/buzzer feedback.
+        from gate.hardware.rfid_reader import shutdown_reader
+
+        if hasattr(self, "_reader"):
+            shutdown_reader(self._reader)
         logger.info("RFID reader stopped")
 
 

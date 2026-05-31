@@ -14,8 +14,8 @@ def ml_stack_available() -> bool:
 def ml_stack_error_message() -> str:
     return (
         "FaceNet (keras-facenet) is not installed in this venv.\n"
-        "  • RFID + hardware tests work on Pi OS Trixie (Python 3.13)\n"
-        "  • Full face enrollment / gate needs Pi OS Bookworm (Python 3.10)\n"
-        "  • Run once on Bookworm: ./setup-gate-env.sh\n"
-        "  • Enrollment RFID-only: python admin_enrollment.py --no-embed"
+        "  • Pi OS Trixie (Python 3.13): run ./install-python311.sh then ./setup-gate-env.sh\n"
+        "  • Or flash Pi OS Bookworm (64-bit) and ./setup-gate-env.sh\n"
+        "  • RFID + hardware tests work without FaceNet\n"
+        "  • Enrollment RFID-only: ./start-enrollment.sh"
     )

@@ -125,6 +125,10 @@ The system is designed for easy integration with real hardware and AI:
 - **Camera** — Replace `react-webcam` simulation with real camera feed
 - **Hardware Feedback** — Connect LED, buzzer, and door relay via GPIO/serial interface
 
+## Raspberry Pi
+
+Gate and enrollment scripts live in [`raspberry-pi/`](raspberry-pi/). When you move the Pi to a new Wi‑Fi or room, see **[docs/PI-WIFI-AND-ROOM-CHANGE.md](docs/PI-WIFI-AND-ROOM-CHANGE.md)** (SSH, API checks, all recovery cases).
+
 ## License
 
 MIT

@@ -33,18 +33,10 @@ class SpiProbeResult:
 
 
 def ensure_bcm_gpio() -> None:
-    """Use BCM before RC522 and feedback share the same GPIO numbering."""
-    import RPi.GPIO as GPIO
+    """BCM + Pi 5 setup patch (must run before mfrc522 import)."""
+    from gate.hardware.gpio_platform import ensure_gpio
 
-    GPIO.setwarnings(False)
-    mode = GPIO.getmode()
-    if mode is None:
-        GPIO.setmode(GPIO.BCM)
-    elif mode != GPIO.BCM:
-        raise RuntimeError(
-            "GPIO is already in BOARD mode (likely from an old RC522 init). "
-            "Restart the process. RC522 and buzzer/LED feedback both need BCM."
-        )
+    ensure_gpio()
 
 
 def list_spidev_devices() -> list[tuple[int, int]]:
@@ -62,9 +54,11 @@ def list_spidev_devices() -> list[tuple[int, int]]:
 
 
 def _open_mfrc522_core(bus: int, device: int, speed_hz: int) -> Any:
-    ensure_bcm_gpio()
-    from mfrc522 import MFRC522
-    import RPi.GPIO as GPIO
+    from gate.hardware.gpio_platform import ensure_gpio, release_gpio_pins
+
+    GPIO = ensure_gpio()
+    release_gpio_pins(RC522_RST_BCM)
+    from mfrc522 import MFRC522  # noqa: E402 — GPIO patch must run first
 
     return MFRC522(
         bus=bus,
@@ -76,11 +70,14 @@ def _open_mfrc522_core(bus: int, device: int, speed_hz: int) -> Any:
 
 
 def _close_mfrc522_spi(mfrc: Any) -> None:
-    """Close SPI only — do not GPIO.cleanup() (breaks buzzer/LED pins)."""
+    """Close SPI and release RC522 RST (GPIO25) so the next probe can run on Pi 5."""
+    from gate.hardware.gpio_platform import release_gpio_pins
+
     try:
         mfrc.spi.close()
     except Exception:
         pass
+    release_gpio_pins(RC522_RST_BCM)
 
 
 def chip_version(mfrc: Any) -> int:
@@ -91,10 +88,10 @@ def probe_spi_device(bus: int, device: int) -> SpiProbeResult | None:
     """Return first working speed for this spidev node, or last failed attempt."""
     last: SpiProbeResult | None = None
     for speed_hz in SPI_SPEEDS_HZ:
+        mfrc = None
         try:
             mfrc = _open_mfrc522_core(bus, device, speed_hz)
             version = chip_version(mfrc)
-            _close_mfrc522_spi(mfrc)
             result = SpiProbeResult(
                 bus=bus,
                 device=device,
@@ -114,6 +111,9 @@ def probe_spi_device(bus: int, device: int) -> SpiProbeResult | None:
                 ok=False,
                 error=str(exc),
             )
+        finally:
+            if mfrc is not None:
+                _close_mfrc522_spi(mfrc)
     return last
 
 
@@ -142,16 +142,61 @@ def probe_all_spi(*, preferred: tuple[int, int] | None = None) -> list[SpiProbeR
     return results
 
 
+def find_working_reader(
+    preferred_bus: int,
+    preferred_device: int,
+) -> tuple[Any, int, int, int] | None:
+    """Return (MFRC522 core, bus, device, speed_hz) — reader left open on success."""
+    nodes = list_spidev_devices()
+    if not nodes:
+        nodes = [(0, 0), (10, 0)]
+
+    ordered: list[tuple[int, int]] = []
+    preferred = (preferred_bus, preferred_device)
+    ordered.append(preferred)
+    for node in nodes:
+        if node not in ordered:
+            ordered.append(node)
+
+    seen: set[tuple[int, int]] = set()
+    for bus, device in ordered:
+        if (bus, device) in seen:
+            continue
+        seen.add((bus, device))
+        for speed_hz in SPI_SPEEDS_HZ:
+            mfrc = None
+            try:
+                mfrc = _open_mfrc522_core(bus, device, speed_hz)
+                version = chip_version(mfrc)
+                if version in VALID_CHIP_VERSIONS:
+                    return mfrc, bus, device, speed_hz
+                _close_mfrc522_spi(mfrc)
+                mfrc = None
+            except Exception:
+                if mfrc is not None:
+                    _close_mfrc522_spi(mfrc)
+                    mfrc = None
+    return None
+
+
 def find_working_spi(
     preferred_bus: int,
     preferred_device: int,
 ) -> tuple[int, int, int] | None:
     """Return (bus, device, speed_hz) for the first RC522 that responds, or None."""
-    preferred = (preferred_bus, preferred_device)
-    for result in probe_all_spi(preferred=preferred):
-        if result.ok:
-            return result.bus, result.device, result.speed_hz
-    return None
+    found = find_working_reader(preferred_bus, preferred_device)
+    if found is None:
+        return None
+    mfrc, bus, device, speed_hz = found
+    _close_mfrc522_spi(mfrc)
+    return bus, device, speed_hz
+
+
+def shutdown_reader(reader: Any) -> None:
+    """Release RC522 SPI + RST GPIO when done (e.g. after --test-rfid)."""
+    core = getattr(reader, "READER", None)
+    if core is not None:
+        _close_mfrc522_spi(core)
 
 
 def print_spi_diagnosis(preferred_bus: int, preferred_device: int) -> int:
@@ -180,7 +225,8 @@ def print_spi_diagnosis(preferred_bus: int, preferred_device: int) -> int:
         print("  • Version should be 0x91 or 0x92 — 0x00/0xFF means bad wiring or wrong bus")
         print("  • Check 3.3V (not 5V), all 6 wires, card 1–3 cm from antenna")
         print("  • Run: ls -l /dev/spidev*  (user must be in group spi)")
-        print("  • Try the other bus in .env (Pi 5: often 0, sometimes 10 — auto-probe picks the working one)")
+        print("  • Pi 5 GPIO errors: run ./fix-pi5-gpio.sh; check RST pin: pinctrl get 25")
+        print("  • 'GPIO busy' on RST (GPIO25): stop gate service / reboot, then retry")
         return 1
 
     if (working.bus, working.device) != (preferred_bus, preferred_device):
@@ -195,6 +241,20 @@ def print_spi_diagnosis(preferred_bus: int, preferred_device: int) -> int:
     return 0
 
 
+def _gpio_busy_hint(results: list[SpiProbeResult]) -> str:
+    if not any(r.error and "busy" in r.error.lower() for r in results):
+        return ""
+    return (
+        "\n  GPIO busy on RC522 reset (GPIO25) — another process owns the pin.\n"
+        "  Fix on Pi:\n"
+        "    sudo systemctl stop pfe-gate pfe-admin\n"
+        "    sudo systemctl disable pfe-gate pfe-admin   # if testing manually\n"
+        "    pkill -f gate_attendance.py\n"
+        "    ./start-gate.sh\n"
+        "  Use EITHER 'sudo systemctl enable --now pfe-gate' OR './start-gate.sh', not both."
+    )
+
+
 def create_mfrc522_reader(
     spi_bus: int,
     spi_device: int,
@@ -207,28 +267,33 @@ def create_mfrc522_reader(
     """
     from mfrc522 import SimpleMFRC522
 
-    bus, device, speed_hz = spi_bus, spi_device, SPI_SPEEDS_HZ[0]
-    working = find_working_spi(spi_bus, spi_device) if auto_probe else None
+    if auto_probe:
+        found = find_working_reader(spi_bus, spi_device)
+        if found is None:
+            results = probe_all_spi(preferred=(spi_bus, spi_device))
+            detail = "\n  ".join(r.label for r in results) if results else "(no /dev/spidev* — enable SPI)"
+            raise RuntimeError(
+                f"RC522 not found (configured SPI_BUS={spi_bus} SPI_DEVICE={spi_device}).\n"
+                f"  SPI probe:\n  {detail}\n"
+                "  Fix: python3 admin_enrollment.py --test-rfid\n"
+                "  If probe shows OK on spidev0.0, set in .env: SPI_BUS=0 SPI_DEVICE=0"
+                f"{_gpio_busy_hint(results)}"
+            )
+        mfrc, bus, device, speed_hz = found
+    else:
+        ensure_bcm_gpio()
+        bus, device, speed_hz = spi_bus, spi_device, SPI_SPEEDS_HZ[0]
+        mfrc = _open_mfrc522_core(bus, device, speed_hz)
+        version = chip_version(mfrc)
+        if version not in VALID_CHIP_VERSIONS:
+            _close_mfrc522_spi(mfrc)
+            raise RuntimeError(
+                f"RC522 SPI open on bus {bus}/{device} but chip version 0x{version:02X} "
+                f"(expected 0x91/0x92). Check wiring and 3.3V power."
+            )
 
-    if working is not None:
-        bus, device, speed_hz = working
-    elif auto_probe:
-        raise RuntimeError(
-            f"RC522 not found on SPI bus {spi_bus} device {spi_device}. "
-            "Run: python3 admin_enrollment.py --test-rfid"
-        )
-
-    ensure_bcm_gpio()
     reader = object.__new__(SimpleMFRC522)
-    reader.READER = _open_mfrc522_core(bus, device, speed_hz)
-
-    version = chip_version(reader.READER)
-    if version not in VALID_CHIP_VERSIONS:
-        raise RuntimeError(
-            f"RC522 SPI open on bus {bus}/{device} but chip version 0x{version:02X} "
-            f"(expected 0x91/0x92). Check wiring and 3.3V power."
-        )
-
+    reader.READER = mfrc
     return reader, (bus, device, speed_hz)
 
 
@@ -263,26 +328,29 @@ def run_rfid_poll_test(spi_bus: int, spi_device: int, *, seconds: float = 30.0) 
         print(f"ERROR: RC522 init failed: {exc}")
         return 1
 
-    version = chip_version(reader.READER)
-    print()
-    print(
-        f"Polling spidev{bus}.{device} (chip 0x{version:02X}, RST=GPIO{RC522_RST_BCM}) "
-        f"for {seconds:.0f}s..."
-    )
-    print("Hold card flat, 1–3 cm from the reader.")
-    print()
+    try:
+        version = chip_version(reader.READER)
+        print()
+        print(
+            f"Polling spidev{bus}.{device} (chip 0x{version:02X}, RST=GPIO{RC522_RST_BCM}) "
+            f"for {seconds:.0f}s..."
+        )
+        print("Hold card flat, 1–3 cm from the reader.")
+        print()
 
-    deadline = time.monotonic() + seconds
-    dots = 0
-    while time.monotonic() < deadline:
-        uid = read_uid_once(reader)
-        if uid:
-            print(f"Card detected: {uid}")
-            return 0
-        dots += 1
-        if dots % 200 == 0:
-            print("  still polling...")
-        time.sleep(0.05)
+        deadline = time.monotonic() + seconds
+        dots = 0
+        while time.monotonic() < deadline:
+            uid = read_uid_once(reader)
+            if uid:
+                print(f"Card detected: {uid}")
+                return 0
+            dots += 1
+            if dots % 200 == 0:
+                print("  still polling...")
+            time.sleep(0.05)
 
-    print("No card detected (SPI OK — problem is antenna/card placement or card type).")
-    return 1
+        print("No card detected (SPI OK — problem is antenna/card placement or card type).")
+        return 1
+    finally:
+        shutdown_reader(reader)

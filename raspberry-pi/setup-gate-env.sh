@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Create gate-env on Raspberry Pi (Bookworm 3.10 or Trixie 3.11+)
+# Create gate-env on Raspberry Pi — Python 3.10–3.12 only (FaceNet / TensorFlow).
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -10,32 +10,70 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 echo "Installing system packages..."
 sudo apt update
-sudo apt install -y python3-venv python3-rpi-lgpio python3-pip python3-dev build-essential
+sudo apt install -y python3-venv python3-rpi-lgpio python3-pip python3-dev build-essential swig liblgpio-dev
 
 echo "Adding user to gpio/spi groups (log out & back in if this is first run)..."
 sudo usermod -aG gpio,spi "$USER" 2>/dev/null || true
 
-PY=""
-for candidate in python3.11 python3.12 python3.10 python3; do
-  if command -v "$candidate" &>/dev/null; then
-    PY="$candidate"
-    break
-  fi
-done
+resolve_python() {
+  local candidate ver
 
-if [ -z "$PY" ]; then
-  echo "ERROR: No python3 found"
+  # Prefer locally built 3.11 (install-python311.sh) — must be executable, not a stale PATH name
+  for candidate in \
+    "$HOME/.local/python311/bin/python3.11" \
+    /usr/local/bin/python3.11 \
+    /usr/bin/python3.11 \
+    /usr/bin/python3.12 \
+    /usr/bin/python3.10; do
+    if [[ -x "$candidate" ]]; then
+      ver=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+      if [[ "$ver" == "3.10" || "$ver" == "3.11" || "$ver" == "3.12" ]]; then
+        echo "$candidate"
+        return 0
+      fi
+    fi
+  done
+  return 1
+}
+
+PY=""
+if PY=$(resolve_python); then
+  :
+else
+  DEFAULT=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "?")
+  echo ""
+  echo "ERROR: No Python 3.10–3.12 found (system default: Python ${DEFAULT})."
+  echo ""
+  echo "Pi OS Trixie ships Python 3.13 — TensorFlow / FaceNet do not support it yet."
+  echo ""
+  echo "Fix (pick one):"
+  echo "  A) On this Pi:  ./install-python311.sh   then re-run ./setup-gate-env.sh"
+  echo "  B) Flash Pi OS Bookworm (64-bit) — then ./setup-gate-env.sh"
+  echo ""
   exit 1
 fi
 
 VER=$("$PY" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-MINOR=$("$PY" -c 'import sys; print(sys.version_info.minor)')
 echo "Using: $PY (Python $VER)"
 
 deactivate 2>/dev/null || true
-rm -rf gate-env
 
-"$PY" -m venv --system-site-packages gate-env
+if [[ ! -x "$PY" ]]; then
+  echo "ERROR: Python not executable: $PY"
+  exit 1
+fi
+
+if [[ -d gate-env ]]; then
+  echo "Removing old gate-env..."
+  rm -rf gate-env
+fi
+
+VENV_FLAGS=()
+if [[ "$PY" != "$HOME/.local/python311/bin/python3.11" ]]; then
+  VENV_FLAGS=(--system-site-packages)
+fi
+
+"$PY" -m venv "${VENV_FLAGS[@]}" gate-env
 # shellcheck disable=SC1091
 source gate-env/bin/activate
 
@@ -44,46 +82,55 @@ pip install --upgrade pip setuptools wheel
 
 echo ""
 echo "Step 1/2 — minimal (hardware, RFID, LCD, API)..."
-pip install -r requirements-gate-minimal.txt
+grep -v '^mfrc522' requirements-gate-minimal.txt | pip install -r /dev/stdin
+pip install mfrc522==0.0.7 --no-deps
 
 echo ""
-echo "Step 2/2 — ML / camera extras..."
-if [ "$VER" = "3.10" ]; then
-  pip install -r requirements-gate.txt || pip install -r requirements-gate-ml.txt
-elif [ "$MINOR" -le 12 ]; then
-  pip install -r requirements-gate-ml.txt || echo "WARN: ML install failed — hardware tests still work"
+echo "GPIO for Pi 5 (RFID + buzzer/LED)..."
+pip uninstall -y RPi.GPIO lgpio 2>/dev/null || true
+rm -rf "${VIRTUAL_ENV}/lib/python"*/site-packages/RPi 2>/dev/null || true
+if ! python -c "import RPi.GPIO" 2>/dev/null; then
+  echo "  Installing rpi-lgpio via pip (custom Python 3.11 venv)..."
+  pip install "rpi-lgpio>=0.6"
 else
-  pip install -r requirements-gate-trixie.txt || echo "WARN: camera extras failed"
-  echo ""
-  echo "NOTE: Python 3.13 — TensorFlow / FaceNet not available via pip."
-  echo "      Hardware tests + RFID + API work now."
-  echo "      Full face gate needs Pi OS Bookworm (Python 3.10) or Python 3.11/3.12."
+  python - <<'PY'
+import RPi.GPIO as GPIO
+from pathlib import Path
+
+path = Path(getattr(GPIO, "__file__", "") or "")
+text = path.read_text(encoding="utf-8", errors="ignore")[:4096] if path.is_file() else ""
+if "site-packages/RPi/GPIO" in str(path).replace("\\", "/") and "lgpio" not in text:
+    raise SystemExit(
+        "Legacy pip RPi.GPIO detected — run: pip uninstall -y RPi.GPIO && pip install rpi-lgpio"
+    )
+print(f"  GPIO backend OK — {path}")
+PY
 fi
 
-pip uninstall -y RPi.GPIO lgpio rpi-lgpio 2>/dev/null || true
+echo ""
+echo "Verifying GPIO..."
+python - <<'PY'
+from gate.hardware.gpio_platform import verify_gpio_or_exit
+
+verify_gpio_or_exit()
+PY
 
 echo ""
-echo "Verifying GPIO (system python3-rpi-lgpio via --system-site-packages)..."
-python - <<'PY'
-import sys
+echo "Step 2/2 — ML / camera (FaceNet gate)..."
+if [ "$VER" = "3.10" ]; then
+  pip install -r requirements-gate.txt || pip install -r requirements-gate-ml.txt
+else
+  pip install -r requirements-gate-ml.txt
+fi
 
-try:
-    import RPi.GPIO as GPIO
-
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BCM)
-    pin = 17
-    GPIO.setup(pin, GPIO.OUT)
-    GPIO.output(pin, GPIO.LOW)
-    GPIO.setup(pin, GPIO.IN)
-    print("GPIO OK — RPi.GPIO from system site-packages")
-except Exception as exc:
-    print(f"GPIO FAILED: {exc}")
-    print("Fix: sudo apt install python3-rpi-lgpio")
-    print("     pip uninstall -y RPi.GPIO lgpio rpi-lgpio")
-    print("     rm -rf gate-env && ./setup-gate-env.sh")
-    sys.exit(1)
-PY
+echo ""
+echo "Verifying FaceNet (keras-facenet)..."
+if python -c "import keras_facenet" 2>/dev/null; then
+  echo "FaceNet OK — ./start-gate.sh should work"
+else
+  echo "WARN: keras_facenet not installed — gate face mode will not start."
+  echo "      Check pip errors above; on 3.11 try: pip install -r requirements-gate-ml.txt"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -91,7 +138,6 @@ echo "  Done — Python $VER"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "  source gate-env/bin/activate"
-echo "  python3 gate_attendance.py --test-feedback"
-echo "  python3 gate_attendance.py --test-lcd"
-echo "  python3 gate_attendance.py --test-connectivity"
+echo "  python3 -c \"import keras_facenet; print('OK')\""
+echo "  ./start-gate.sh"
 echo ""

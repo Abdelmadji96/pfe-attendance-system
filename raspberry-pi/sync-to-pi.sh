@@ -92,6 +92,8 @@ rsync -avz --progress \
 echo
 echo "Done. On the Pi, run:"
 echo "  cd ~/raspberry-pi && source gate-env/bin/activate"
-echo "  pip install -r requirements-gate.txt"
-echo "  ./install-systemd.sh gate --enable --start    # gate Pi"
-echo "  ./install-systemd.sh admin --enable --start   # admin desk Pi"
+echo "  ./start-gate.sh                    # manual run (stops pfe-gate service if running)"
+echo "  — OR —"
+echo "  sudo systemctl enable --now pfe-gate   # auto-start at boot (do not also run start-gate.sh)"
+echo ""
+echo "  Optional: ./install-systemd.sh gate --enable --start"

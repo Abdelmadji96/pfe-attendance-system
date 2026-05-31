@@ -27,19 +27,18 @@ class HardwareFeedback:
             return
 
         try:
-            import RPi.GPIO as GPIO
+            from gate.hardware.gpio_platform import ensure_gpio
 
+            GPIO = ensure_gpio()
             self._gpio = GPIO
-            GPIO.setwarnings(False)
-            GPIO.setmode(GPIO.BCM)
+            off = self._off_level()
 
             for pin in (
                 self.config.green_led_gpio,
                 self.config.red_led_gpio,
                 self.config.buzzer_gpio,
             ):
-                GPIO.setup(pin, GPIO.OUT)
-                GPIO.output(pin, self._off_level())
+                GPIO.setup(pin, GPIO.OUT, initial=off)
 
             mode = "PWM (passive)" if self.config.buzzer_passive else "digital (active)"
             self._ready = True
@@ -55,14 +54,15 @@ class HardwareFeedback:
             logger.warning(f"Hardware feedback setup failed: {exc}")
             if "different mode" in str(exc).lower():
                 logger.info(
-                    "GPIO mode conflict: init feedback before RC522, or restart the process. "
-                    "Latest code uses BCM for both (sync from Mac)."
+                    "GPIO mode conflict: init RC522 before feedback, or restart the process."
                 )
-            logger.info(
-                "Pi 5 fix: sudo apt install python3-rpi-lgpio && "
-                "pip uninstall -y RPi.GPIO lgpio rpi-lgpio && "
-                "recreate venv with --system-site-packages"
-            )
+            elif "not allocated" in str(exc).lower():
+                logger.info(
+                    "Pi 5 GPIO fix: ./fix-pi5-gpio.sh  "
+                    "(rpi-lgpio + mfrc522 --no-deps; needs initial= on GPIO.setup)"
+                )
+            else:
+                logger.info("Pi 5: ./fix-pi5-gpio.sh  or  pip install rpi-lgpio")
 
     def _ensure_ready(self) -> bool:
         if self._ready and self._gpio is not None:

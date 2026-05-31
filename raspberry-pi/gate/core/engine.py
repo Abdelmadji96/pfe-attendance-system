@@ -24,15 +24,15 @@ class GateAttendanceEngine:
         logger.section("INITIALISING GATE ATTENDANCE")
 
         self.api = GateApiClient(self.config.api)
+        self.feedback = HardwareFeedback(self.config.feedback)
+        # RFID before FaceNet/LCD — Pi 5 lgpio must claim GPIO25 (RC522 RST) first
+        self.input_provider = build_input_provider(self.config.runtime)
+        self.lcd = LcdDisplay(self.config.lcd)
+        self.lcd.setup()
+        self.feedback.setup()
         self.camera = Camera(config=self.config.camera)
         self.face_verifier = FaceVerifier(config=self.config.face)
         self.anti_spoof = AntiSpoof(config=self.config.anti_spoof)
-        self.feedback = HardwareFeedback(self.config.feedback)
-        self.lcd = LcdDisplay(self.config.lcd)
-        self.feedback.setup()
-        self.lcd.setup()
-        # RC522 uses BCM + GPIO25 RST — init after feedback so modes stay consistent
-        self.input_provider = build_input_provider(self.config.runtime)
 
         logger.info(f"API_BASE_URL         : {self.config.api.api_base_url}")
         logger.info(f"GATE_DEVICE_ID       : {self.config.api.device_id}")
