@@ -355,7 +355,7 @@ async function main() {
     { key: "SIMILARITY_THRESHOLD", value: String(SIMILARITY_THRESHOLD) },
     { key: "EMBEDDING_DIMENSION", value: String(EMBEDDING_DIMENSION) },
     { key: "MAX_FACE_IMAGES", value: "20" },
-    { key: "MIN_FACE_IMAGES", value: "10" },
+    { key: "MIN_FACE_IMAGES", value: "1" },
     { key: "SESSION_TOLERANCE_MINUTES", value: "15" },
   ];
   for (const s of settingsData) {
