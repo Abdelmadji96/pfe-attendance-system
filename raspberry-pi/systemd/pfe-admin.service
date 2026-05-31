@@ -1,0 +1,16 @@
+[Unit]
+Description=PFE Admin Enrollment (RFID + FaceNet embed server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@PI_USER@
+WorkingDirectory=@PI_HOME@/raspberry-pi
+Environment=PATH=@PI_HOME@/raspberry-pi/gate-env/bin
+ExecStart=@PI_HOME@/raspberry-pi/gate-env/bin/python admin_enrollment.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

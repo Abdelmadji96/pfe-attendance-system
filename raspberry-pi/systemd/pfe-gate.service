@@ -1,0 +1,16 @@
+[Unit]
+Description=PFE Gate Attendance (RFID + camera)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@PI_USER@
+WorkingDirectory=@PI_HOME@/raspberry-pi
+Environment=PATH=@PI_HOME@/raspberry-pi/gate-env/bin
+ExecStart=@PI_HOME@/raspberry-pi/gate-env/bin/python gate_attendance.py --no-preview
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
