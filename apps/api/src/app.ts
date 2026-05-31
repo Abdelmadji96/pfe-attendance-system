@@ -15,6 +15,7 @@ import { modulesRouter } from "./routes/module.routes";
 import { staffRouter } from "./routes/staff.routes";
 import { enrollmentRouter } from "./routes/enrollment.routes";
 import { env } from "./config/env";
+import { isStudentRoleReady } from "./utils/ensure-student-role";
 
 export const app = express();
 
@@ -30,6 +31,12 @@ app.get("/api/health", async (_req, res) => {
     timestamp: new Date().toISOString(),
     faceEmbedConfigured: Boolean(env.FACE_EMBED_SERVICE_URL),
   };
+
+  try {
+    payload.studentRoleReady = await isStudentRoleReady();
+  } catch {
+    payload.studentRoleReady = false;
+  }
 
   if (env.FACE_EMBED_SERVICE_URL) {
     const healthUrl = env.FACE_EMBED_SERVICE_URL.replace(/\/embed\/?$/, "/health");
