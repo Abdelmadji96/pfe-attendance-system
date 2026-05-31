@@ -21,6 +21,15 @@ export default function UserDetailPage() {
     enabled: !!id,
   });
 
+  const { data: classModules } = useQuery({
+    queryKey: ["modules", user?.classGroupId],
+    queryFn: () =>
+      api
+        .get(`/api/modules?classGroupId=${user!.classGroupId}`)
+        .then((r) => r.data.data),
+    enabled: !!user?.classGroupId,
+  });
+
   const faceImageUrl = (imagePath: string) =>
     `${API_ORIGIN}/${imagePath.replace(/^\//, "")}`;
 
@@ -52,17 +61,30 @@ export default function UserDetailPage() {
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><GraduationCap className="h-5 w-5" />Academic Info</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            {user.studentId ? (
+            {user.classGroup ? (
               <>
-                <InfoRow label="Student ID" value={user.studentId} />
-                {user.classGroup && (
-                  <>
-                    <InfoRow label="Class / Group" value={`${user.classGroup.name} (${user.classGroup.level})`} />
-                    <InfoRow label="Speciality" value={user.classGroup.speciality?.name || "N/A"} />
-                    <InfoRow label="Department" value={user.classGroup.speciality?.department?.name || "N/A"} />
-                    <InfoRow label="Faculty" value={user.classGroup.speciality?.department?.faculty?.name || "N/A"} />
-                    <InfoRow label="University" value={user.classGroup.speciality?.department?.faculty?.university?.name || "N/A"} />
-                  </>
+                {user.studentId && <InfoRow label="Student ID" value={user.studentId} />}
+                <InfoRow label="Class / Group" value={`${user.classGroup.name} (${user.classGroup.level})`} />
+                <InfoRow label="Speciality" value={user.classGroup.speciality?.name || "N/A"} />
+                <InfoRow label="Department" value={user.classGroup.speciality?.department?.name || "N/A"} />
+                <InfoRow label="Faculty" value={user.classGroup.speciality?.department?.faculty?.name || "N/A"} />
+                <InfoRow label="University" value={user.classGroup.speciality?.department?.faculty?.university?.name || "N/A"} />
+                <Separator />
+                <p className="text-sm font-medium">Class modules:</p>
+                {classModules?.length > 0 ? (
+                  <div className="space-y-1">
+                    {classModules.map((m: any) => (
+                      <div key={m.id} className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">
+                          {m.name}{" "}
+                          <Badge variant="outline" className="ml-1">{m.code}</Badge>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No modules for this class group yet</p>
                 )}
               </>
             ) : user.professorModules?.length > 0 ? (
