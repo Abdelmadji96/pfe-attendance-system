@@ -10,6 +10,9 @@ uploads/faces/*
 !uploads/faces/.gitkeep
 uploads/avatars/*
 !uploads/avatars/.gitkeep
+apps/api/uploads/
+__pycache__/
+*.py[cod]
 *.log
 .DS_Store
 coverage/
