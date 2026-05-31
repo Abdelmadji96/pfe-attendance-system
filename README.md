@@ -118,6 +118,10 @@ View the full schema: [`apps/api/prisma/schema.prisma`](apps/api/prisma/schema.p
 
 ## Integration Points
 
+See **[docs/OPERATIONS.md](docs/OPERATIONS.md)** for the full deployment guide: all environment variables, pre-start checklists, Pi setup, test commands, and moving to a new room.
+
+## Scripts
+
 The system is designed for easy integration with real hardware and AI:
 
 - **RFID Reader** — Replace manual UID input with WebSocket/Serial connection to RFID hardware
