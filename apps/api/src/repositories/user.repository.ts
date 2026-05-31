@@ -91,7 +91,7 @@ export const userRepository = {
 
     const where: Prisma.UserWhereInput = {
       classGroupId: { in: classGroupIds },
-      studentId: { not: null },
+      role: { name: "STUDENT" },
     };
 
     if (params.search) {

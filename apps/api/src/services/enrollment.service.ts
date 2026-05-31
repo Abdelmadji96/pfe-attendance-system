@@ -76,9 +76,9 @@ export const enrollmentService = {
       }
     }
 
-    const defaultRole = await prisma.role.findFirst({ where: { name: "PROFESSOR" } });
-    if (!defaultRole) {
-      throw ApiError.internal("Default role not found");
+    const studentRole = await prisma.role.findFirst({ where: { name: "STUDENT" } });
+    if (!studentRole) {
+      throw ApiError.internal("STUDENT role not found — run db:seed or add STUDENT to roles");
     }
 
     const user = await prisma.$transaction(async (tx) => {
@@ -90,7 +90,7 @@ export const enrollmentService = {
           phone: input.userInfo.phone,
           studentId: studentCode,
           classGroup: { connect: { id: input.academicInfo.classGroupId } },
-          role: { connect: { id: defaultRole.id } },
+          role: { connect: { id: studentRole.id } },
           rfidCard: { create: { uid: rfidUid } },
         },
         include: {

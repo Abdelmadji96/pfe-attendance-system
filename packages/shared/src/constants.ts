@@ -55,6 +55,8 @@ export const ROLE_PERMISSIONS: Record<RoleName, Permission[]> = {
     Permission.VIEW_OWN_ATTENDANCE,
     Permission.VIEW_CHARTS,
   ],
+
+  [RoleName.STUDENT]: [],
 };
 
 export const NAV_ITEMS = [

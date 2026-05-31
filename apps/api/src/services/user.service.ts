@@ -156,9 +156,8 @@ export const userService = {
       if (existingStudent) throw ApiError.conflict("Student ID already exists");
     }
 
-    const defaultRole = await prisma.role.findFirst({ where: { name: "PROFESSOR" } });
-    const studentRole = defaultRole; // Students get a basic role; adjust as needed
-    if (!studentRole) throw ApiError.internal("Default role not found");
+    const studentRole = await prisma.role.findFirst({ where: { name: "STUDENT" } });
+    if (!studentRole) throw ApiError.internal("STUDENT role not found — run db:seed");
 
     const createData: Prisma.UserCreateInput = {
       firstName: input.firstName,

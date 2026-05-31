@@ -40,6 +40,7 @@ enum RoleName {
   SUPER_HR_ADMIN
   HR_ADMIN
   PROFESSOR
+  STUDENT
 }
 
 // ── Academic hierarchy ──

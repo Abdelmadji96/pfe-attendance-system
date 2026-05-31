@@ -31,6 +31,7 @@ export enum RoleName {
   SUPER_HR_ADMIN = "SUPER_HR_ADMIN",
   HR_ADMIN = "HR_ADMIN",
   PROFESSOR = "PROFESSOR",
+  STUDENT = "STUDENT",
 }
 
 export enum Permission {
