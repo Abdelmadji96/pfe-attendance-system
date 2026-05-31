@@ -114,6 +114,11 @@ def parse_args() -> argparse.Namespace:
         help="Run buzzer diagnostic (tries active/PWM modes)",
     )
     parser.add_argument(
+        "--test-rfid",
+        action="store_true",
+        help="Poll RC522 for one card scan (30s) then exit",
+    )
+    parser.add_argument(
         "--test-lcd",
         action="store_true",
         help="Cycle LCD test messages then exit",
@@ -176,6 +181,14 @@ def main() -> int:
             lcd.cleanup()
         return 0
 
+    if args.test_rfid:
+        from gate.hardware.rfid_reader import run_rfid_poll_test
+
+        return run_rfid_poll_test(
+            config.runtime.spi_bus,
+            config.runtime.spi_device,
+        )
+
     if args.test_feedback:
         from gate.hardware.feedback import HardwareFeedback
 
@@ -214,6 +227,18 @@ def main() -> int:
 
     if args.test_connectivity:
         return test_connectivity(config)
+
+    from gate.core.ml_check import ml_stack_available, ml_stack_error_message
+
+    if not ml_stack_available():
+        print("ERROR: Cannot start gate attendance — FaceNet ML stack missing.")
+        print()
+        print(ml_stack_error_message())
+        print()
+        print("Hardware tests still work:")
+        print("  python3 gate_attendance.py --test-feedback")
+        print("  python3 gate_attendance.py --test-lcd")
+        return 1
 
     from gate.core.engine import GateAttendanceEngine  # noqa: E402
 

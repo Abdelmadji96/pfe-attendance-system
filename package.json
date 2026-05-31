@@ -16,9 +16,12 @@
     "pi:admin": "cd raspberry-pi && python3 admin_enrollment.py",
     "pi:gate:test": "cd raspberry-pi && python3 gate_attendance.py --test-connectivity",
     "pi:gate": "cd raspberry-pi && python3 gate_attendance.py",
-    "pi:embed:server": "cd raspberry-pi && python3 face_embed_server.py"
+    "pi:embed:server": "cd raspberry-pi && python3 face_embed_server.py",
+    "pi:sync": "bash raspberry-pi/sync-to-pi.sh",
+    "docs:pdf": "bash scripts/docs-to-pdf.sh"
   },
   "devDependencies": {
+    "md-to-pdf": "^5.2.4",
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
   }

@@ -1,8 +1,9 @@
-"""GPIO buzzer + LED feedback for gate attendance (Pi 5 compatible via rpi-lgpio)."""
+"""GPIO buzzer + LED feedback for gate attendance (Pi 5 via system python3-rpi-lgpio)."""
 
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from gate.config import FeedbackConfig
 from gate.utils import logger
@@ -13,7 +14,7 @@ class HardwareFeedback:
 
     def __init__(self, config: FeedbackConfig) -> None:
         self.config = config
-        self._gpio = None
+        self._gpio: Any = None
         self._pwm = None
         self._ready = False
 
@@ -22,16 +23,15 @@ class HardwareFeedback:
             logger.info("Hardware feedback disabled (FEEDBACK_ENABLED=false)")
             return
 
+        if self._ready and self._gpio is not None:
+            return
+
         try:
-            import RPi.GPIO as GPIO  # noqa: N817
+            import RPi.GPIO as GPIO
 
             self._gpio = GPIO
             GPIO.setwarnings(False)
-            try:
-                GPIO.setmode(GPIO.BCM)
-            except RuntimeError:
-                # Already set by RC522 / other code — BCM is fine
-                pass
+            GPIO.setmode(GPIO.BCM)
 
             for pin in (
                 self.config.green_led_gpio,
@@ -53,6 +53,16 @@ class HardwareFeedback:
             self._ready = False
             self._gpio = None
             logger.warning(f"Hardware feedback setup failed: {exc}")
+            if "different mode" in str(exc).lower():
+                logger.info(
+                    "GPIO mode conflict: init feedback before RC522, or restart the process. "
+                    "Latest code uses BCM for both (sync from Mac)."
+                )
+            logger.info(
+                "Pi 5 fix: sudo apt install python3-rpi-lgpio && "
+                "pip uninstall -y RPi.GPIO lgpio rpi-lgpio && "
+                "recreate venv with --system-site-packages"
+            )
 
     def _ensure_ready(self) -> bool:
         if self._ready and self._gpio is not None:
@@ -140,7 +150,7 @@ class HardwareFeedback:
 
     def test_buzzer_diagnostic(self) -> None:
         """Try every common buzzer wiring mode — listen for which step beeps."""
-        if not self._ready or self._gpio is None:
+        if not self._ensure_ready():
             logger.warning("GPIO not ready")
             return
 

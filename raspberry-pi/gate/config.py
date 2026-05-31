@@ -9,6 +9,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from gate.hardware.pi_board import default_spi_bus
+
 
 GATE_ROOT = Path(__file__).resolve().parent
 PI_ROOT = GATE_ROOT.parent
@@ -93,7 +95,7 @@ class RuntimeConfig:
     rfid_debounce_seconds: float = field(
         default_factory=lambda: _env_float("SCAN_DEBOUNCE_SECONDS", 2.0)
     )
-    spi_bus: int = field(default_factory=lambda: _env_int("SPI_BUS", 0))
+    spi_bus: int = field(default_factory=lambda: _env_int("SPI_BUS", default_spi_bus()))
     spi_device: int = field(default_factory=lambda: _env_int("SPI_DEVICE", 0))
 
 

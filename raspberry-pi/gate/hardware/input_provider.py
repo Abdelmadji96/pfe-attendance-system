@@ -37,16 +37,7 @@ class KeyboardInputProvider(BaseInputProvider):
         return InputEvent(kind="uid", value=raw.upper())
 
 
-def create_mfrc522_reader(spi_bus: int, spi_device: int):
-    import RPi.GPIO as GPIO  # noqa: F401
-    from mfrc522 import MFRC522, SimpleMFRC522
-
-    if spi_bus == 0 and spi_device == 0:
-        return SimpleMFRC522()
-
-    reader = object.__new__(SimpleMFRC522)
-    reader.READER = MFRC522(bus=spi_bus, device=spi_device)
-    return reader
+from gate.hardware.rfid_reader import create_mfrc522_reader, read_uid_blocking
 
 
 class RFIDInputProvider(BaseInputProvider):
@@ -61,14 +52,17 @@ class RFIDInputProvider(BaseInputProvider):
         self.spi_device = spi_device
         self._last_uid: str | None = None
         self._last_time: float = 0.0
-        self._reader = create_mfrc522_reader(spi_bus, spi_device)
-        logger.ok("RFID reader (RC522) initialised")
+        self._reader, (self.spi_bus, self.spi_device, _speed) = create_mfrc522_reader(
+            spi_bus, spi_device
+        )
+        logger.ok(
+            f"RFID reader (RC522) initialised — spidev{self.spi_bus}.{self.spi_device}"
+        )
 
     def get_next_event(self) -> InputEvent:
         logger.info("Waiting for RFID card...")
         try:
-            uid, _ = self._reader.read()
-            uid_str = str(uid).strip().upper()
+            uid_str = read_uid_blocking(self._reader)
             now = time.time()
             if (
                 uid_str == self._last_uid

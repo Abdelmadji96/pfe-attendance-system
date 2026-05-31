@@ -49,6 +49,8 @@ import requests
 from gate.config import FeedbackConfig, LcdConfig
 from gate.hardware.feedback import HardwareFeedback
 from gate.hardware.lcd_display import LcdDisplay
+from gate.hardware.pi_board import default_spi_bus
+from gate.hardware.rfid_reader import create_mfrc522_reader, read_uid_blocking
 
 # Debounce state (module-level)
 _last_sent_uid: str | None = None
@@ -75,10 +77,10 @@ def load_config() -> dict[str, Any]:
         timeout = 5.0
 
     try:
-        spi_bus = int(os.environ.get("SPI_BUS", "0"))
+        spi_bus = int(os.environ.get("SPI_BUS", str(default_spi_bus())))
         spi_device = int(os.environ.get("SPI_DEVICE", "0"))
     except ValueError:
-        spi_bus = 0
+        spi_bus = default_spi_bus()
         spi_device = 0
 
     if not api_base_url:
@@ -201,8 +203,8 @@ class EnrollmentHardware:
         return cls(feedback=feedback, lcd=lcd, lcd_config=lcd_cfg)
 
     def setup_after_rfid(self) -> None:
-        """RC522 init may reconfigure GPIO — restore LED/buzzer pins."""
-        self.feedback.setup()
+        """No-op — RC522 and feedback both use BCM; do not re-setup after RC522."""
+        return
 
     def show_scanning(self, uid: str) -> None:
         self.lcd.show_message("Reading card...", uid[: self.lcd_config.cols])
@@ -350,16 +352,15 @@ def _pi5_gpio_hint(exc: Exception) -> str:
 
 
 def create_mfrc522_reader(spi_bus: int, spi_device: int):
-    """Build SimpleMFRC522 with optional SPI bus (Pi 5 may need SPI_BUS=10)."""
-    import RPi.GPIO as GPIO  # noqa: F401 — rpi-lgpio provides this on Pi 5
-    from mfrc522 import MFRC522, SimpleMFRC522
-
-    if spi_bus == 0 and spi_device == 0:
-        return SimpleMFRC522()
-
-    reader = object.__new__(SimpleMFRC522)
-    reader.READER = MFRC522(bus=spi_bus, device=spi_device)
+    """Re-export for backwards compatibility — returns reader only."""
+    reader, _ = _create_reader(spi_bus, spi_device)
     return reader
+
+
+def _create_reader(spi_bus: int, spi_device: int):
+    from gate.hardware import rfid_reader
+
+    return rfid_reader.create_mfrc522_reader(spi_bus, spi_device, auto_probe=True)
 
 
 def run_rfid_loop(
@@ -400,7 +401,21 @@ def run_rfid_loop(
         print()
 
     try:
-        reader = create_mfrc522_reader(config["spi_bus"], config["spi_device"])
+        reader, (active_bus, active_device, _speed) = _create_reader(
+            config["spi_bus"], config["spi_device"]
+        )
+        version = reader.READER.Read_MFRC522(0x37)
+        if (active_bus, active_device) != (config["spi_bus"], config["spi_device"]):
+            print(
+                f"  NOTE: .env SPI_BUS={config['spi_bus']} did not work — "
+                f"using spidev{active_bus}.{active_device} instead."
+            )
+            print(f"        Update .env: SPI_BUS={active_bus} SPI_DEVICE={active_device}")
+        print(
+            f"  RC522 reader: ready (spidev{active_bus}.{active_device}, "
+            f"chip 0x{version:02X}, RST=GPIO25)"
+        )
+        print()
     except Exception as exc:
         print(
             f"ERROR: Failed to initialize RC522 reader: {exc}\n"
@@ -409,15 +424,12 @@ def run_rfid_loop(
             "    - SPI enabled: sudo raspi-config -> Interface Options -> SPI\n"
             "    - Reboot, then: ls /dev/spidev*\n"
             "    - Pi 5: sudo apt install python3-rpi-lgpio; pip uninstall RPi.GPIO -y\n"
-            "    - Pi 5 venv: python3 -m venv --system-site-packages env\n"
-            "    - If init OK but no reads: set SPI_BUS=10 in .env (Pi 5)\n"
+            "    - Pi 5 venv: python3 -m venv --system-site-packages gate-env\n"
+            "    - Pi 5: set SPI_BUS=10 and SPI_DEVICE=0 in .env\n"
             "    - Wiring 3.3V only (not 5V) — see README.md\n"
             "    - Hold card 1–3 cm from reader"
         )
         return 1
-
-    if hardware is not None:
-        hardware.setup_after_rfid()
 
     print("Waiting for RFID card... (Ctrl+C to stop)")
     print()
@@ -425,14 +437,13 @@ def run_rfid_loop(
     try:
         while True:
             try:
-                card_id, _card_text = reader.read()
+                uid = read_uid_blocking(reader)
             except Exception as exc:
                 print(f"RFID read error: {exc}")
                 print("  Retrying in 1 second...")
                 time.sleep(1)
                 continue
 
-            uid = normalize_uid(card_id)
             print(f"Card detected: {uid}")
 
             if hardware is not None:
@@ -458,11 +469,6 @@ def run_rfid_loop(
     finally:
         if hardware is not None:
             hardware.cleanup()
-        try:
-            GPIO.cleanup()
-            print("GPIO cleaned up.")
-        except Exception:
-            pass
 
 
 def parse_args() -> argparse.Namespace:
@@ -478,6 +484,11 @@ def parse_args() -> argparse.Namespace:
         "--send-test",
         metavar="UID",
         help="Send a fake UID to the API (no hardware) and exit.",
+    )
+    parser.add_argument(
+        "--test-rfid",
+        action="store_true",
+        help="Poll RC522 for one card scan (30s) then exit",
     )
     parser.add_argument(
         "--test-feedback",
@@ -533,6 +544,13 @@ def run_test_feedback() -> int:
     return 0
 
 
+def run_rfid_poll_test(spi_bus: int, spi_device: int, *, seconds: float = 30.0) -> int:
+    """Re-export for admin_enrollment.py and legacy callers."""
+    from gate.hardware.rfid_reader import run_rfid_poll_test as _run
+
+    return _run(spi_bus, spi_device, seconds=seconds)
+
+
 def main() -> int:
     args = parse_args()
     config = load_config()
@@ -542,6 +560,11 @@ def main() -> int:
 
     if args.test_feedback:
         return run_test_feedback()
+
+    if args.test_rfid:
+        from gate.hardware.rfid_reader import run_rfid_poll_test
+
+        return run_rfid_poll_test(config["spi_bus"], config["spi_device"])
 
     if args.test_connectivity:
         return test_connectivity(config)

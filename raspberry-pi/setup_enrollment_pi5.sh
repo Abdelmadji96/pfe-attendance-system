@@ -29,17 +29,13 @@ if python3 -c "import RPi.GPIO as GPIO; p=GPIO.__file__; exit('site-packages/RPi
 fi
 
 echo ""
-echo "Testing RC522 init..."
+echo "Testing RC522 init + SPI probe..."
 python3 -c "
-from mfrc522 import MFRC522, SimpleMFRC522
+from gate.hardware.rfid_reader import print_spi_diagnosis
 import os
-bus = int(os.environ.get('SPI_BUS', '10'))
+bus = int(os.environ.get('SPI_BUS', '0'))
 dev = int(os.environ.get('SPI_DEVICE', '0'))
-reader = object.__new__(SimpleMFRC522)
-reader.READER = MFRC522(bus=bus, device=dev)
-import RPi.GPIO as GPIO
-GPIO.cleanup()
-print('RC522 init OK (SPI_BUS=%s SPI_DEVICE=%s)' % (bus, dev))
+raise SystemExit(print_spi_diagnosis(bus, dev))
 "
 
 echo "Done. Run: python3 enrollment_rfid_sender.py"

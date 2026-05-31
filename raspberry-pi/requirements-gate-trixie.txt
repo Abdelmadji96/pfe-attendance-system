@@ -1,0 +1,10 @@
+# Pi OS Trixie — camera + anti-spoof only (no TensorFlow on Python 3.13 yet)
+# Full face gate / enrollment embed still needs Bookworm (Python 3.10) or ML bundle on 3.11–3.12
+
+opencv-contrib-python-headless>=4.10.0
+onnxruntime>=1.23.0
+scipy>=1.14.0
+scikit-learn>=1.5.0
+pillow>=10.0.0
+protobuf>=4.25.0
+typing_extensions>=4.5.0

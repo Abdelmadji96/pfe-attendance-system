@@ -52,21 +52,21 @@ for _key, _val in {
 }.items():
     os.environ.setdefault(_key, _val)
 
-import cv2 as cv
-import numpy as np
-
 from gate.config import DEFAULT_ENV_VARS, FaceVerifierConfig
-from gate.core.face_verifier import FaceVerifier
 
 for _key, _val in DEFAULT_ENV_VARS.items():
     os.environ.setdefault(_key, _val)
 
-_verifier: FaceVerifier | None = None
+_verifier = None
 
 
-def get_verifier() -> FaceVerifier:
+def get_verifier():
     global _verifier
     if _verifier is None:
+        import numpy as np
+
+        from gate.core.face_verifier import FaceVerifier
+
         print("Loading FaceNet (keras-facenet)...")
         _verifier = FaceVerifier(config=FaceVerifierConfig())
         dummy = np.zeros((160, 160, 3), dtype="float32")
@@ -76,6 +76,9 @@ def get_verifier() -> FaceVerifier:
 
 
 def embed_image_bytes(data: bytes) -> list[float]:
+    import cv2 as cv
+    import numpy as np
+
     arr = np.frombuffer(data, dtype=np.uint8)
     bgr = cv.imdecode(arr, cv.IMREAD_COLOR)
     if bgr is None:
@@ -156,7 +159,7 @@ def start_embed_server(
     if port is None:
         port = int(os.environ.get("FACE_EMBED_PORT", "5055"))
 
-    get_verifier()
+    # Model loads on first /embed request (avoids crash when ML stack missing at startup)
     server = ThreadingHTTPServer((host, port), EmbedHandler)
 
     if daemon:

@@ -28,12 +28,11 @@ class GateAttendanceEngine:
         self.face_verifier = FaceVerifier(config=self.config.face)
         self.anti_spoof = AntiSpoof(config=self.config.anti_spoof)
         self.feedback = HardwareFeedback(self.config.feedback)
-        self.feedback.setup()
         self.lcd = LcdDisplay(self.config.lcd)
-        self.lcd.setup()
-        self.input_provider = build_input_provider(self.config.runtime)
-        # RC522 init may touch GPIO — re-configure LED/buzzer pins after RFID
         self.feedback.setup()
+        self.lcd.setup()
+        # RC522 uses BCM + GPIO25 RST — init after feedback so modes stay consistent
+        self.input_provider = build_input_provider(self.config.runtime)
 
         logger.info(f"API_BASE_URL         : {self.config.api.api_base_url}")
         logger.info(f"GATE_DEVICE_ID       : {self.config.api.device_id}")

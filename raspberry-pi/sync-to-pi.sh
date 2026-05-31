@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PI_USER="${PI_USER:-admin}"
-PI_HOST="${PI_HOST:-192.168.1.10}"
+PI_HOST="${PI_HOST:-raspberrypi.local}"
 PI_DIR="${PI_DIR:-~/raspberry-pi}"
 WITH_MODELS=0
 

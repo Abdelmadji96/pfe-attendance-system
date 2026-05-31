@@ -10,7 +10,7 @@ services:
     environment:
       POSTGRES_DB: pfe_attendance
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: 24f3098d2db359a69778ae198fcff40a5ce65b0d93eed35448483c0d28d838e8
     volumes:
       - pgdata:/var/lib/postgresql/data
 

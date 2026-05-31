@@ -102,6 +102,11 @@ def parse_args() -> argparse.Namespace:
         help="Embed server port (default: 5055)",
     )
     parser.add_argument(
+        "--test-rfid",
+        action="store_true",
+        help="Poll RC522 for one card scan (30s) then exit",
+    )
+    parser.add_argument(
         "--test-feedback",
         action="store_true",
         help="Test buzzer + LEDs then exit",
@@ -128,7 +133,7 @@ def main() -> int:
     args = parse_args()
 
     import enrollment_rfid_sender as rfid
-    from face_embed_server import start_embed_server
+    from gate.core.ml_check import ml_stack_available, ml_stack_error_message
 
     config = rfid.load_config()
 
@@ -141,11 +146,30 @@ def main() -> int:
     if args.test_feedback:
         return rfid.run_test_feedback()
 
+    if args.test_rfid:
+        from gate.hardware.rfid_reader import run_rfid_poll_test
+
+        return run_rfid_poll_test(config["spi_bus"], config["spi_device"])
+
     if args.send_test is not None:
         return rfid.run_send_test(config, args.send_test)
 
     embed_server = None
-    if not args.no_embed:
+    use_embed = not args.no_embed and ml_stack_available()
+
+    if not args.no_embed and not ml_stack_available():
+        print("=" * 60)
+        print("WARNING — FaceNet not available (RFID-only mode)")
+        print("=" * 60)
+        print(ml_stack_error_message())
+        print()
+        print("Continuing with RFID scan only...")
+        print("=" * 60)
+        print()
+
+    if use_embed:
+        from face_embed_server import start_embed_server
+
         print("=" * 60)
         print("PART 1 — ADMIN ENROLLMENT")
         print("=" * 60)
@@ -162,6 +186,9 @@ def main() -> int:
         print("  Dashboard: /enrollment step 1 — tap card to auto-fill UID")
         print("  Then complete enrollment with 10+ face photos")
         print("=" * 60)
+        print()
+    elif not args.no_embed:
+        print("Starting RFID sender (no face embed server)...")
         print()
 
     try:
