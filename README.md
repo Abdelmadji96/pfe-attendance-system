@@ -116,22 +116,7 @@ View the full schema: [`apps/api/prisma/schema.prisma`](apps/api/prisma/schema.p
 | `pnpm db:seed` | Seed database with demo data |
 | `pnpm db:studio` | Open Prisma Studio |
 
-## Documentation
-
-| Guide | Description |
-|-------|-------------|
-| [docs/README.md](docs/README.md) | Documentation index |
-| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Full operations guide |
-| [docs/ENV-VARIABLES.md](docs/ENV-VARIABLES.md) | All environment variables |
-| [docs/ADMIN-PI.md](docs/ADMIN-PI.md) | Step 1 — enrollment desk Pi |
-| [docs/GATE-PI.md](docs/GATE-PI.md) | Step 2 — gate attendance Pi |
-| [docs/ROOM-CHANGE.md](docs/ROOM-CHANGE.md) | Moving Pi / new IP |
-
-Generate PDFs: `pnpm docs:pdf` → output in `docs/pdf/`
-
 ## Integration Points
-
-## Scripts
 
 The system is designed for easy integration with real hardware and AI:
 
