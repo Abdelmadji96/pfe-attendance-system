@@ -14,6 +14,7 @@ import { masterDataRouter } from "./routes/master-data.routes";
 import { modulesRouter } from "./routes/module.routes";
 import { staffRouter } from "./routes/staff.routes";
 import { enrollmentRouter } from "./routes/enrollment.routes";
+import { evaluationRouter } from "./routes/evaluation.routes";
 import { env } from "./config/env";
 import { isStudentRoleReady } from "./utils/ensure-student-role";
 
@@ -73,5 +74,6 @@ app.use("/api/master-data", masterDataRouter);
 app.use("/api/modules", modulesRouter);
 app.use("/api/staff", staffRouter);
 app.use("/api/enrollment", enrollmentRouter);
+app.use("/api/evaluation", evaluationRouter);
 
 app.use(errorHandler);

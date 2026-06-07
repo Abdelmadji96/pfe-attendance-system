@@ -328,3 +328,46 @@ export interface AttendanceStats {
   todayFailedAttempts: number;
   averageVerificationScore: number;
 }
+
+// ── Model evaluation (offline benchmark results) ──
+
+export interface ConfusionCountsDto {
+  tp: number;
+  tn: number;
+  fp: number;
+  fn: number;
+}
+
+export interface ClassificationMetricsDto {
+  TP: number;
+  TN: number;
+  FP: number;
+  FN: number;
+  Accuracy: number;
+  Precision: number;
+  Recall: number;
+  "F1-Score": number;
+  FAR: number;
+  FRR: number;
+}
+
+export interface EvaluationResultDto {
+  system: string;
+  counts: ConfusionCountsDto;
+  metrics: ClassificationMetricsDto;
+  threshold?: number;
+  dataset?: string;
+  skipped?: number;
+  gallery_identities?: number;
+  similarity_mode?: string;
+  live_images?: number;
+  spoof_images?: number;
+  errors?: string[];
+}
+
+export interface EvaluationSummaryDto {
+  faceRecognition: EvaluationResultDto | null;
+  antiSpoof: EvaluationResultDto | null;
+  resultsDir: string;
+  updatedAt: string | null;
+}
