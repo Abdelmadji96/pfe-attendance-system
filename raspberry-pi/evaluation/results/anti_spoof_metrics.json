@@ -1,0 +1,25 @@
+{
+  "system": "anti_spoof",
+  "counts": {
+    "tp": 2116,
+    "tn": 7117,
+    "fp": 12,
+    "fn": 21
+  },
+  "metrics": {
+    "TP": 2116,
+    "TN": 7117,
+    "FP": 12,
+    "FN": 21,
+    "Accuracy": 0.996439,
+    "Precision": 0.994361,
+    "Recall": 0.990173,
+    "F1-Score": 0.992263,
+    "FAR": 0.001683,
+    "FRR": 0.009827
+  },
+  "dataset": "evaluation/datasets/anti_spoof",
+  "skipped": 0,
+  "live_images": 2137,
+  "spoof_images": 7129
+}

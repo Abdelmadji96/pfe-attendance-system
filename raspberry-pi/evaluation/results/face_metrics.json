@@ -1,0 +1,26 @@
+{
+  "system": "face_recognition",
+  "counts": {
+    "tp": 2496,
+    "tn": 12456282,
+    "fp": 14,
+    "fn": 0
+  },
+  "metrics": {
+    "TP": 2496,
+    "TN": 12456282,
+    "FP": 14,
+    "FN": 0,
+    "Accuracy": 0.999998792,
+    "Precision": 0.994421525,
+    "Recall": 1.0,
+    "F1-Score": 0.997203562,
+    "FAR": 1.133e-06,
+    "FRR": 0.0
+  },
+  "threshold": 0.6,
+  "dataset": "evaluation/datasets/face",
+  "skipped": 0,
+  "gallery_identities": 312,
+  "similarity_mode": "best"
+}

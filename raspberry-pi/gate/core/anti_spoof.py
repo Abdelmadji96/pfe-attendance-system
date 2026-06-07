@@ -43,6 +43,32 @@ class AntiSpoof:
             return
         self._load_sessions()
 
+    def predict_image(self, image_path: str | Path) -> dict:
+        """Run anti-spoof on a single image file (for offline evaluation)."""
+        path = Path(image_path)
+        if not path.is_file():
+            return {"passed": False, "method": "silent_face_onnx", "error": "file_not_found"}
+
+        frame = cv.imread(str(path))
+        if frame is None:
+            return {"passed": False, "method": "silent_face_onnx", "error": "invalid_image"}
+
+        if not self.config.enabled:
+            return {"passed": True, "method": "disabled", "source": str(path)}
+
+        try:
+            sessions = self._load_sessions()
+        except Exception as exc:
+            return {"passed": False, "method": "silent_face_onnx", "error": str(exc)}
+
+        image_bbox = self._get_bbox_opencv(frame)
+        if image_bbox is None:
+            return {"passed": False, "method": "silent_face_onnx", "error": "no_face_detected"}
+
+        result = self._run_onnx(sessions, frame, image_bbox)
+        result["source"] = str(path)
+        return result
+
     def check(self, camera: Camera) -> dict:
         if not self.config.enabled:
             frame = camera.capture_after_delay(0.1)
