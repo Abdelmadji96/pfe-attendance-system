@@ -1,26 +1,26 @@
 {
   "system": "face_recognition",
   "counts": {
-    "tp": 2496,
-    "tn": 12456282,
-    "fp": 14,
-    "fn": 0
+    "tp": 1236,
+    "tn": 940,
+    "fp": 10,
+    "fn": 11
   },
   "metrics": {
-    "TP": 2496,
-    "TN": 12456282,
-    "FP": 14,
-    "FN": 0,
-    "Accuracy": 0.999998792,
-    "Precision": 0.994421525,
-    "Recall": 1.0,
-    "F1-Score": 0.997203562,
-    "FAR": 1.133e-06,
-    "FRR": 0.0
+    "TP": 1236,
+    "TN": 940,
+    "FP": 10,
+    "FN": 11,
+    "Accuracy": 0.9904415111515703,
+    "Precision": 0.9919743178170144,
+    "Recall": 0.9911788291900562,
+    "F1-Score": 0.9915764139590854,
+    "FAR": 0.010526315789473684,
+    "FRR": 0.008821170809943865
   },
   "threshold": 0.6,
   "dataset": "evaluation/datasets/face",
-  "skipped": 0,
-  "gallery_identities": 312,
+  "skipped": 3,
+  "gallery_identities": 62,
   "similarity_mode": "best"
 }

@@ -1,25 +1,25 @@
 {
   "system": "anti_spoof",
   "counts": {
-    "tp": 2116,
-    "tn": 7117,
-    "fp": 12,
-    "fn": 21
+    "tp": 1060,
+    "tn": 1057,
+    "fp": 10,
+    "fn": 10
   },
   "metrics": {
-    "TP": 2116,
-    "TN": 7117,
-    "FP": 12,
-    "FN": 21,
-    "Accuracy": 0.996439,
-    "Precision": 0.994361,
-    "Recall": 0.990173,
-    "F1-Score": 0.992263,
-    "FAR": 0.001683,
-    "FRR": 0.009827
+    "TP": 1060,
+    "TN": 1057,
+    "FP": 10,
+    "FN": 10,
+    "Accuracy": 0.9906410856340665,
+    "Precision": 0.9906542056074766,
+    "Recall": 0.9906542056074766,
+    "F1-Score": 0.9906542056074766,
+    "FAR": 0.00937207122774133,
+    "FRR": 0.009345794392523364
   },
   "dataset": "evaluation/datasets/anti_spoof",
-  "skipped": 0,
-  "live_images": 2137,
-  "spoof_images": 7129
+  "skipped": 2,
+  "live_images": 1070,
+  "spoof_images": 1067
 }
